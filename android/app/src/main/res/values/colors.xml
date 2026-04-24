@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="lss_ink">#162320</color>
+    <color name="lss_muted">#62736D</color>
+    <color name="lss_paper">#F7F2E8</color>
+    <color name="lss_card">#FFFDF7</color>
+    <color name="lss_line">#DED3BF</color>
+    <color name="lss_teal">#0D6B64</color>
+    <color name="lss_teal_dark">#084D49</color>
+    <color name="lss_amber">#E2A63B</color>
+    <color name="lss_amber_dark">#A76812</color>
+    <color name="lss_mist">#E6EFEA</color>
+</resources>

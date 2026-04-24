@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+export PYTHONPATH="${SCRIPT_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
+
+HAS_CONFIG=0
+for arg in "$@"; do
+  case "$arg" in
+    --config|--config=*)
+      HAS_CONFIG=1
+      ;;
+  esac
+done
+
+if [ "$HAS_CONFIG" -eq 1 ]; then
+  exec python3 -m lss_server serve "$@"
+fi
+
+exec python3 -m lss_server serve "$@" --config "${LAN_SECURE_SHARE_CONFIG:-${SCRIPT_DIR}/state/config.json}"

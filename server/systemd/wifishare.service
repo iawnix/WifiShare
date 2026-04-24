@@ -1,0 +1,19 @@
+[Unit]
+Description=WifiShare HTTPS receiver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/iaw/Codex/work/2026-04-24/WifiShare/server
+Environment=PYTHONUNBUFFERED=1
+Environment=LAN_SECURE_SHARE_CONFIG=/home/iaw/Codex/work/2026-04-24/WifiShare/server/state/config.json
+Environment=LAN_SECURE_SHARE_DOWNLOAD_DIR=/home/iaw/Codex/work/2026-04-24/WifiShare/server/state/uploads
+Environment=LAN_SECURE_SHARE_PHONE_QUEUE_DIR=/home/iaw/Codex/work/2026-04-24/WifiShare/server/state/phone-outbox
+EnvironmentFile=-%h/.config/wifishare/server.env
+ExecStart=/home/iaw/Codex/work/2026-04-24/WifiShare/server/serve
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

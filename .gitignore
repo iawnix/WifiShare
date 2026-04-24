@@ -1,0 +1,9 @@
+server/state/
+server/**/__pycache__/
+server/**/*.pyc
+
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties

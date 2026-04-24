@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WifiShare</string>
+    <string name="app_title">WifiShare</string>
+    <string name="app_subtitle">手机与 Linux 之间的局域网加密传输。</string>
+
+    <string name="settings">设置</string>
+    <string name="settings_title">接收端设置</string>
+    <string name="settings_subtitle">填写 Linux 服务端输出的配置，或直接扫描 pairing 链接完成配对。</string>
+    <string name="settings_section_receiver">接收端凭据</string>
+    <string name="settings_hint">这些值来自当前 state/config.json。如果 Linux 端重新 init，需要重新配对。</string>
+    <string name="back_to_transfer">返回传输</string>
+
+    <string name="server_name_hint">服务端名称</string>
+    <string name="base_url_hint">Base URL，例如 https://192.168.1.23:8443</string>
+    <string name="auth_token_hint">Python 服务端输出的 Bearer token</string>
+    <string name="fingerprint_hint">服务端证书 SHA-256 指纹</string>
+    <string name="save_config">保存接收端</string>
+
+    <string name="receiver_card_title">当前接收端</string>
+    <string name="receiver_missing">尚未配置接收端</string>
+    <string name="receiver_not_paired">未配对</string>
+    <string name="receiver_ready">已配对，可传输</string>
+    <string name="receiver_url_empty">进入设置，或扫描 Linux 端的 lss://pair 配对链接。</string>
+
+    <string name="send_card_title">发送到电脑</string>
+    <string name="send_now">发送选中文件</string>
+    <string name="receive_card_title">从电脑接收</string>
+    <string name="receive_card_body">拉取 Linux 端通过 phone 命令加入队列的文件，保存到 Downloads/WifiShare。</string>
+    <string name="receive_now">接收队列文件</string>
+
+    <string name="status_idle">空闲。可通过系统分享发送文件，或从 Linux 拉取队列。</string>
+    <string name="no_pending_share">暂无待发送文件。请在 Android 系统分享菜单中选择 WifiShare。</string>
+    <string name="no_phone_queue">Linux 端暂无队列文件。</string>
+    <string name="invalid_config">接收端配置不完整。</string>
+    <string name="invalid_pairing_link">配对链接无效或不完整。</string>
+    <string name="config_saved">已保存接收端：%1$s</string>
+    <string name="pairing_saved">已配对接收端：%1$s</string>
+    <string name="uploading">正在发送...</string>
+    <string name="checking_queue">正在检查 Linux 队列...</string>
+    <string name="upload_progress">已发送 %1$d/%2$d：%3$s</string>
+    <string name="upload_complete">已发送 %1$d 个文件。</string>
+    <string name="download_complete">已从 Linux 保存 %1$d 个文件。</string>
+    <string name="receive_failed">从 Linux 接收失败。</string>
+    <string name="pending_share_count">%1$d 个文件待发送</string>
+    <string name="pending_share_more">还有 %1$d 个文件</string>
+</resources>

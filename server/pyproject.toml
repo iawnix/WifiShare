@@ -1,0 +1,19 @@
+[project]
+name = "wifishare-server"
+version = "0.1.0"
+description = "Encrypted LAN file receiver for Android share-sheet uploads."
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [
+  { name = "Ares" }
+]
+
+[project.scripts]
+wifishare = "lss_server.main:main"
+wifishare-phone = "lss_server.main:phone_main"
+lss-server = "lss_server.main:main"
+phone = "lss_server.main:phone_main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
