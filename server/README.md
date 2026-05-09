@@ -16,11 +16,11 @@
 ## 初始化
 
 ```bash
-cd /home/iaw/Codex/work/2026-04-24/WifiShare/server
+cd WifiShare/server
 python -m lss_server init \
   --state-dir ./state \
-  --server-name kali-host \
-  --advertise-host 192.168.31.29
+  --server-name linux-host \
+  --advertise-host 192.168.1.50
 ```
 
 `advertise-host` 必须是手机能访问到的 Linux 局域网 IP。
@@ -60,7 +60,7 @@ python -m lss_server pairing --config ./state/config.json --write
 默认保存目录来自配置或环境变量：
 
 ```bash
-export LAN_SECURE_SHARE_DOWNLOAD_DIR=/home/iaw/Downloads/WifiShare
+export LAN_SECURE_SHARE_DOWNLOAD_DIR="$HOME/Downloads/WifiShare"
 ```
 
 如果没有设置环境变量，默认保存到 `state/uploads/`。
@@ -89,7 +89,7 @@ Downloads/WifiShare/
 启用当前 shell 的快捷命令：
 
 ```bash
-. /home/iaw/Codex/work/2026-04-24/WifiShare/server/env.sh
+. ./env.sh
 ```
 
 ## systemd 用户服务
@@ -110,8 +110,8 @@ systemd/server.env.example
 
 ```bash
 mkdir -p ~/.config/systemd/user ~/.config/wifishare
-cp /home/iaw/Codex/work/2026-04-24/WifiShare/server/systemd/wifishare.service ~/.config/systemd/user/
-cp /home/iaw/Codex/work/2026-04-24/WifiShare/server/systemd/server.env.example ~/.config/wifishare/server.env
+cp systemd/wifishare.service ~/.config/systemd/user/
+cp systemd/server.env.example ~/.config/wifishare/server.env
 $EDITOR ~/.config/wifishare/server.env
 systemctl --user daemon-reload
 systemctl --user enable --now wifishare.service

@@ -5,9 +5,11 @@
     <string name="app_subtitle">手机与 Linux 之间的局域网加密传输。</string>
 
     <string name="settings">设置</string>
-    <string name="settings_title">接收端设置</string>
-    <string name="settings_subtitle">填写 Linux 服务端输出的配置，或直接扫描 pairing 链接完成配对。</string>
-    <string name="settings_section_receiver">接收端凭据</string>
+    <string name="settings_title">服务端设置</string>
+    <string name="settings_subtitle">选择服务端可编辑详细信息；保存后会切换为当前传输目标。</string>
+    <string name="settings_section_receiver">服务端凭据</string>
+    <string name="settings_section_saved_servers">已保存服务端</string>
+    <string name="settings_section_editor">编辑服务端</string>
     <string name="settings_hint">这些值来自当前 state/config.json。如果 Linux 端重新 init，需要重新配对。</string>
     <string name="back_to_transfer">返回传输</string>
 
@@ -15,13 +17,24 @@
     <string name="base_url_hint">Base URL，例如 https://192.168.1.23:8443</string>
     <string name="auth_token_hint">Python 服务端输出的 Bearer token</string>
     <string name="fingerprint_hint">服务端证书 SHA-256 指纹</string>
-    <string name="save_config">保存接收端</string>
+    <string name="save_config">保存并切换</string>
+    <string name="select_server_prompt">选择服务端</string>
+    <string name="no_saved_servers">尚无已保存服务端。</string>
+    <string name="active_server_status">当前使用：%1$s</string>
+    <string name="selected_server_status">已选择：%1$s</string>
+    <string name="use_selected_server">设为当前</string>
+    <string name="delete_selected_server">删除</string>
+    <string name="new_server">新增服务端</string>
+    <string name="new_server_status">正在新增服务端。填写配置后保存即可。</string>
+    <string name="server_switched">已切换服务端：%1$s</string>
+    <string name="server_deleted">已删除服务端：%1$s</string>
 
-    <string name="receiver_card_title">当前接收端</string>
-    <string name="receiver_missing">尚未配置接收端</string>
+    <string name="receiver_card_title">当前服务端</string>
+    <string name="receiver_missing">尚未配置服务端</string>
     <string name="receiver_not_paired">未配对</string>
     <string name="receiver_ready">已配对，可传输</string>
     <string name="receiver_url_empty">进入设置，或扫描 Linux 端的 lss://pair 配对链接。</string>
+    <string name="quick_switch_title">快速切换</string>
 
     <string name="send_card_title">发送到电脑</string>
     <string name="send_now">发送选中文件</string>
@@ -32,10 +45,10 @@
     <string name="status_idle">空闲。可通过系统分享发送文件，或从 Linux 拉取队列。</string>
     <string name="no_pending_share">暂无待发送文件。请在 Android 系统分享菜单中选择 WifiShare。</string>
     <string name="no_phone_queue">Linux 端暂无队列文件。</string>
-    <string name="invalid_config">接收端配置不完整。</string>
+    <string name="invalid_config">服务端配置不完整。</string>
     <string name="invalid_pairing_link">配对链接无效或不完整。</string>
-    <string name="config_saved">已保存接收端：%1$s</string>
-    <string name="pairing_saved">已配对接收端：%1$s</string>
+    <string name="config_saved">已保存并切换到服务端：%1$s</string>
+    <string name="pairing_saved">已配对并切换到服务端：%1$s</string>
     <string name="uploading">正在发送...</string>
     <string name="checking_queue">正在检查 Linux 队列...</string>
     <string name="upload_progress">已发送 %1$d/%2$d：%3$s</string>

@@ -3,9 +3,12 @@ package io.iaw.lanshare
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.text.TextUtils
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import android.view.ViewGroup
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
@@ -14,6 +17,7 @@ class MainActivity : Activity() {
     private lateinit var receiverUrlView: TextView
     private lateinit var shareSummaryView: TextView
     private lateinit var statusView: TextView
+    private lateinit var serverQuickButtonsView: LinearLayout
     private lateinit var settingsButton: Button
     private lateinit var sendButton: Button
     private lateinit var receiveButton: Button
@@ -21,12 +25,14 @@ class MainActivity : Activity() {
     private lateinit var settingsStore: SettingsStore
     private val networkExecutor = Executors.newSingleThreadExecutor()
     private var pendingItems: List<SharedItem> = emptyList()
+    private var serverProfiles: List<TransferConfig> = emptyList()
     @Volatile
     private var queueCheckInFlight = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        SystemBars.applyInsetPadding(findViewById(R.id.mainScroll))
 
         settingsStore = SettingsStore(this)
         bindViews()
@@ -59,6 +65,7 @@ class MainActivity : Activity() {
         receiverUrlView = findViewById(R.id.receiverUrlText)
         shareSummaryView = findViewById(R.id.shareSummary)
         statusView = findViewById(R.id.statusText)
+        serverQuickButtonsView = findViewById(R.id.serverQuickButtons)
         settingsButton = findViewById(R.id.settingsButton)
         sendButton = findViewById(R.id.sendButton)
         receiveButton = findViewById(R.id.receiveButton)
@@ -211,7 +218,9 @@ class MainActivity : Activity() {
     }
 
     private fun refreshReceiverCard() {
+        serverProfiles = settingsStore.loadAll()
         val config = currentConfig()
+        refreshQuickSwitchButtons(config)
         if (config == null) {
             receiverNameView.text = getString(R.string.receiver_missing)
             receiverStatusView.text = getString(R.string.receiver_not_paired)
@@ -224,6 +233,50 @@ class MainActivity : Activity() {
         receiverUrlView.text = config.baseUrl
     }
 
+    private fun refreshQuickSwitchButtons(activeConfig: TransferConfig?) {
+        serverQuickButtonsView.removeAllViews()
+        if (serverProfiles.isEmpty()) {
+            serverQuickButtonsView.addView(serverButton(getString(R.string.no_saved_servers), false, enabled = false))
+            return
+        }
+
+        serverProfiles.forEach { config ->
+            val isActive = config.profileKey() == activeConfig?.profileKey()
+            val button = serverButton(config.serverName.ifBlank { config.baseUrl }, isActive, enabled = true)
+            button.setOnClickListener {
+                if (isActive) {
+                    return@setOnClickListener
+                }
+                if (settingsStore.setActive(config)) {
+                    refreshReceiverCard()
+                    statusView.text = getString(R.string.server_switched, config.serverName)
+                }
+            }
+            serverQuickButtonsView.addView(button)
+        }
+    }
+
+    private fun serverButton(label: String, active: Boolean, enabled: Boolean): Button {
+        return Button(this).apply {
+            text = label
+            setAllCaps(false)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            maxWidth = dp(180)
+            minWidth = dp(86)
+            isEnabled = enabled
+            alpha = if (enabled) 1.0f else 0.55f
+            setTextColor(getColor(if (active) android.R.color.white else R.color.lss_teal))
+            setBackgroundResource(if (active) R.drawable.button_secondary else R.drawable.button_outline)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                dp(44),
+            ).apply {
+                marginEnd = dp(8)
+            }
+        }
+    }
+
     private fun updateSendButtonState() {
         val enabled = pendingItems.isNotEmpty()
         sendButton.isEnabled = enabled
@@ -231,6 +284,10 @@ class MainActivity : Activity() {
     }
 
     private fun currentConfig(): TransferConfig? {
-        return settingsStore.load()
+        return settingsStore.loadActive()
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
     }
 }

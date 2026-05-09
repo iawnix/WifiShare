@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mainScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_app"
+    android:clipToPadding="false"
     android:fillViewport="true">
 
     <LinearLayout
@@ -14,10 +16,10 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="serif"
+            android:fontFamily="sans-serif"
             android:text="@string/app_title"
             android:textColor="@color/lss_ink"
-            android:textSize="34sp"
+            android:textSize="30sp"
             android:textStyle="bold" />
 
         <TextView
@@ -52,8 +54,8 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-condensed"
-                        android:letterSpacing="0.06"
+                        android:fontFamily="sans-serif-medium"
+                        android:letterSpacing="0"
                         android:text="@string/receiver_card_title"
                         android:textColor="@color/lss_muted"
                         android:textSize="12sp"
@@ -94,6 +96,31 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/quick_switch_title"
+                android:textColor="@color/lss_muted"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <HorizontalScrollView
+                android:id="@+id/serverQuickScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:clipToPadding="false"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/serverQuickButtons"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <TextView
                 android:id="@+id/receiverUrlText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -115,7 +142,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="serif"
+                android:fontFamily="sans-serif"
                 android:text="@string/send_card_title"
                 android:textColor="@color/lss_ink"
                 android:textSize="25sp"
@@ -157,7 +184,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="serif"
+                android:fontFamily="sans-serif"
                 android:text="@string/receive_card_title"
                 android:textColor="@color/lss_ink"
                 android:textSize="25sp"

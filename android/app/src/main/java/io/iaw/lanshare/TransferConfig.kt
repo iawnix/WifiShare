@@ -26,4 +26,27 @@ data class TransferConfig(
             authToken.isNotBlank() &&
             certificateSha256.length == 64
     }
+
+    fun normalized(): TransferConfig {
+        return copy(
+            serverName = serverName.trim(),
+            baseUrl = normalizeBaseUrl(baseUrl),
+            authToken = normalizeAuthToken(authToken),
+            certificateSha256 = normalizeFingerprint(certificateSha256),
+        )
+    }
+
+    fun profileKey(): String {
+        val normalized = normalized()
+        return "${normalized.baseUrl}|${normalized.certificateSha256}"
+    }
+
+    fun displayLabel(): String {
+        val normalized = normalized()
+        return if (normalized.serverName.isNotBlank()) {
+            "${normalized.serverName} (${normalized.baseUrl})"
+        } else {
+            normalized.baseUrl
+        }
+    }
 }

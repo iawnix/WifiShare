@@ -1,6 +1,8 @@
 server/state/
 server/**/__pycache__/
 server/**/*.pyc
+server/nohup.out
+server/*.log
 
 android/.gradle/
 android/.kotlin/

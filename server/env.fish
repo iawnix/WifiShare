@@ -23,5 +23,3 @@ end
 if not contains -- "$LAN_SECURE_SHARE_HOME" $PATH
     set -gx PATH "$LAN_SECURE_SHARE_HOME" $PATH
 end
-
-
