@@ -6,7 +6,7 @@ import android.view.WindowInsets
 
 object SystemBars {
     @Suppress("DEPRECATION")
-    fun applyInsetPadding(root: View) {
+    fun applyInsetPadding(root: View, includeIme: Boolean = false) {
         val initialLeft = root.paddingLeft
         val initialTop = root.paddingTop
         val initialRight = root.paddingRight
@@ -15,11 +15,16 @@ object SystemBars {
         root.setOnApplyWindowInsetsListener { view, insets ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val bars = insets.getInsets(WindowInsets.Type.systemBars())
+                val imeBottom = if (includeIme) {
+                    insets.getInsets(WindowInsets.Type.ime()).bottom
+                } else {
+                    0
+                }
                 view.setPadding(
                     initialLeft + bars.left,
                     initialTop + bars.top,
                     initialRight + bars.right,
-                    initialBottom + bars.bottom,
+                    initialBottom + maxOf(bars.bottom, imeBottom),
                 )
             } else {
                 view.setPadding(

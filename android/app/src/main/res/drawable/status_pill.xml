@@ -3,11 +3,11 @@
     <solid android:color="@color/lss_mist" />
     <stroke
         android:width="1dp"
-        android:color="#B9D0C5" />
-    <corners android:radius="999dp" />
+        android:color="#C7D9F2" />
+    <corners android:radius="8dp" />
     <padding
-        android:bottom="8dp"
+        android:bottom="7dp"
         android:left="12dp"
         android:right="12dp"
-        android:top="8dp" />
+        android:top="7dp" />
 </shape>

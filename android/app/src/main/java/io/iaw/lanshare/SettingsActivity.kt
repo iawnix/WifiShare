@@ -1,8 +1,10 @@
 package io.iaw.lanshare
 
 import android.app.Activity
+import android.graphics.Rect
 import android.os.Bundle
 import android.text.TextUtils
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -31,10 +33,11 @@ class SettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
-        SystemBars.applyInsetPadding(findViewById(R.id.settingsScroll))
+        SystemBars.applyInsetPadding(findViewById(R.id.settingsScroll), includeIme = true)
 
         settingsStore = SettingsStore(this)
         bindViews()
+        installImeAwareFocus()
         attachListeners()
         restoreSavedConfig()
     }
@@ -64,6 +67,7 @@ class SettingsActivity : Activity() {
             if (settingsStore.setActive(selected)) {
                 val message = getString(R.string.server_switched, selected.serverName)
                 statusView.text = message
+                WifiShareWidgetProvider.updateAllWidgets(this)
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 refreshSavedServers(selected.profileKey())
             }
@@ -74,6 +78,7 @@ class SettingsActivity : Activity() {
             if (settingsStore.delete(selected.profileKey())) {
                 val message = getString(R.string.server_deleted, selected.serverName)
                 statusView.text = message
+                WifiShareWidgetProvider.updateAllWidgets(this)
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 refreshSavedServers(settingsStore.loadActive()?.profileKey())
             }
@@ -99,6 +104,7 @@ class SettingsActivity : Activity() {
             settingsStore.saveAndActivate(config, replaceProfileKey = selectedProfileKey)
             val message = getString(R.string.config_saved, config.serverName)
             statusView.text = message
+            WifiShareWidgetProvider.updateAllWidgets(this)
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             refreshSavedServers(config.profileKey())
         }
@@ -154,7 +160,7 @@ class SettingsActivity : Activity() {
             val isSelected = config.profileKey() == selectedProfileKey
             val isActive = config.profileKey() == activeKey
             val mainButton = serverListButton(serverListLabel(config, isActive), isActive || isSelected, true).apply {
-                layoutParams = LinearLayout.LayoutParams(0, dp(50), 1f).apply {
+                layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply {
                     marginEnd = dp(8)
                 }
                 setOnClickListener {
@@ -178,13 +184,14 @@ class SettingsActivity : Activity() {
                 alpha = if (isActive) 0.55f else 1.0f
                 setTextColor(getColor(if (isActive) R.color.lss_muted else R.color.lss_teal))
                 setBackgroundResource(R.drawable.button_outline)
-                layoutParams = LinearLayout.LayoutParams(dp(94), dp(50))
+                layoutParams = LinearLayout.LayoutParams(dp(90), dp(46))
                 setOnClickListener {
                     if (settingsStore.setActive(config)) {
                         val message = getString(R.string.server_switched, config.serverName)
                         selectedProfileKey = config.profileKey()
                         populateConfig(config)
                         statusView.text = message
+                        WifiShareWidgetProvider.updateAllWidgets(this@SettingsActivity)
                         Toast.makeText(this@SettingsActivity, message, Toast.LENGTH_SHORT).show()
                         refreshSavedServers(config.profileKey())
                     }
@@ -232,6 +239,23 @@ class SettingsActivity : Activity() {
             authToken = TransferConfig.normalizeAuthToken(authTokenView.text.toString()),
             certificateSha256 = TransferConfig.normalizeFingerprint(fingerprintView.text.toString()),
         )
+    }
+
+    private fun installImeAwareFocus() {
+        listOf(serverNameView, baseUrlView, authTokenView, fingerprintView).forEach { field ->
+            field.setOnFocusChangeListener { view, hasFocus ->
+                if (hasFocus) {
+                    keepFocusedInputVisible(view)
+                }
+            }
+        }
+    }
+
+    private fun keepFocusedInputVisible(view: View) {
+        view.postDelayed({
+            val extraBottom = dp(96)
+            view.requestRectangleOnScreen(Rect(0, 0, view.width, view.height + extraBottom), true)
+        }, 180)
     }
 
     private fun serverListButton(label: String, highlighted: Boolean, enabled: Boolean): Button {

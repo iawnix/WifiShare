@@ -19,7 +19,7 @@
             android:fontFamily="sans-serif"
             android:text="@string/app_title"
             android:textColor="@color/lss_ink"
-            android:textSize="30sp"
+            android:textSize="26sp"
             android:textStyle="bold" />
 
         <TextView
@@ -28,16 +28,16 @@
             android:layout_marginTop="6dp"
             android:text="@string/app_subtitle"
             android:textColor="@color/lss_muted"
-            android:textSize="15sp" />
+            android:textSize="14sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:background="@drawable/card_surface"
-            android:elevation="3dp"
+            android:elevation="1dp"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -58,7 +58,7 @@
                         android:letterSpacing="0"
                         android:text="@string/receiver_card_title"
                         android:textColor="@color/lss_muted"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -68,16 +68,16 @@
                         android:layout_marginTop="6dp"
                         android:text="@string/receiver_missing"
                         android:textColor="@color/lss_ink"
-                        android:textSize="20sp"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
                 <Button
                     android:id="@+id/settingsButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="46dp"
+                    android:layout_height="42dp"
                     android:background="@drawable/button_outline"
-                    android:minWidth="92dp"
+                    android:minWidth="78dp"
                     android:text="@string/settings"
                     android:textAllCaps="false"
                     android:textColor="@color/lss_teal"
@@ -92,7 +92,7 @@
                 android:background="@drawable/status_pill"
                 android:text="@string/receiver_not_paired"
                 android:textColor="@color/lss_teal_dark"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -102,7 +102,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:text="@string/quick_switch_title"
                 android:textColor="@color/lss_muted"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
             <HorizontalScrollView
@@ -127,7 +127,7 @@
                 android:layout_marginTop="12dp"
                 android:text="@string/receiver_url_empty"
                 android:textColor="@color/lss_muted"
-                android:textSize="14sp" />
+                android:textSize="13sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -135,9 +135,9 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:background="@drawable/card_surface"
-            android:elevation="3dp"
+            android:elevation="1dp"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="match_parent"
@@ -145,7 +145,7 @@
                 android:fontFamily="sans-serif"
                 android:text="@string/send_card_title"
                 android:textColor="@color/lss_ink"
-                android:textSize="25sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -156,19 +156,19 @@
                 android:lineSpacingExtra="3dp"
                 android:text="@string/no_pending_share"
                 android:textColor="@color/lss_muted"
-                android:textSize="15sp" />
+                android:textSize="14sp" />
 
             <Button
                 android:id="@+id/sendButton"
                 android:layout_width="match_parent"
-                android:layout_height="54dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="16dp"
                 android:background="@drawable/button_primary"
                 android:enabled="false"
                 android:text="@string/send_now"
                 android:textAllCaps="false"
                 android:textColor="@android:color/white"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -177,9 +177,9 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:background="@drawable/card_surface"
-            android:elevation="3dp"
+            android:elevation="1dp"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="match_parent"
@@ -187,7 +187,7 @@
                 android:fontFamily="sans-serif"
                 android:text="@string/receive_card_title"
                 android:textColor="@color/lss_ink"
-                android:textSize="25sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -197,18 +197,18 @@
                 android:lineSpacingExtra="3dp"
                 android:text="@string/receive_card_body"
                 android:textColor="@color/lss_muted"
-                android:textSize="15sp" />
+                android:textSize="14sp" />
 
             <Button
                 android:id="@+id/receiveButton"
                 android:layout_width="match_parent"
-                android:layout_height="54dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="16dp"
                 android:background="@drawable/button_secondary"
                 android:text="@string/receive_now"
                 android:textAllCaps="false"
                 android:textColor="@android:color/white"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -221,7 +221,7 @@
             android:lineSpacingExtra="2dp"
             android:text="@string/status_idle"
             android:textColor="@color/lss_teal_dark"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:textStyle="bold" />
     </LinearLayout>
 </ScrollView>

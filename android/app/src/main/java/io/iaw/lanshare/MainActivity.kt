@@ -127,6 +127,11 @@ class MainActivity : Activity() {
 
     private fun handleAppIntent(intent: Intent?) {
         val pairedFromLink = handlePairingIntent(intent)
+        if (intent?.action == ACTION_RECEIVE_QUEUE) {
+            handleShareIntent(intent, autoReceiveWhenEmpty = false)
+            receiveQueuedFiles(auto = false)
+            return
+        }
         handleShareIntent(intent, autoReceiveWhenEmpty = !pairedFromLink)
     }
 
@@ -143,6 +148,7 @@ class MainActivity : Activity() {
 
         settingsStore.save(config)
         refreshReceiverCard()
+        WifiShareWidgetProvider.updateAllWidgets(this)
         val message = getString(R.string.pairing_saved, config.serverName)
         statusView.text = message
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
@@ -249,6 +255,7 @@ class MainActivity : Activity() {
                 }
                 if (settingsStore.setActive(config)) {
                     refreshReceiverCard()
+                    WifiShareWidgetProvider.updateAllWidgets(this)
                     statusView.text = getString(R.string.server_switched, config.serverName)
                 }
             }
@@ -270,7 +277,7 @@ class MainActivity : Activity() {
             setBackgroundResource(if (active) R.drawable.button_secondary else R.drawable.button_outline)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                dp(44),
+                dp(40),
             ).apply {
                 marginEnd = dp(8)
             }
@@ -289,5 +296,9 @@ class MainActivity : Activity() {
 
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
+    }
+
+    companion object {
+        const val ACTION_RECEIVE_QUEUE = "io.iaw.lanshare.action.RECEIVE_QUEUE"
     }
 }

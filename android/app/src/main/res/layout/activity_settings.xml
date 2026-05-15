@@ -19,7 +19,7 @@
             android:fontFamily="sans-serif"
             android:text="@string/settings_title"
             android:textColor="@color/lss_ink"
-            android:textSize="28sp"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
         <TextView
@@ -29,16 +29,16 @@
             android:lineSpacingExtra="3dp"
             android:text="@string/settings_subtitle"
             android:textColor="@color/lss_muted"
-            android:textSize="15sp" />
+            android:textSize="14sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:background="@drawable/card_surface"
-            android:elevation="3dp"
+            android:elevation="1dp"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="match_parent"
@@ -47,7 +47,7 @@
                 android:letterSpacing="0"
                 android:text="@string/settings_section_saved_servers"
                 android:textColor="@color/lss_muted"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
 
             <LinearLayout
@@ -64,7 +64,7 @@
                 android:layout_marginTop="10dp"
                 android:text="@string/no_saved_servers"
                 android:textColor="@color/lss_muted"
-                android:textSize="14sp" />
+                android:textSize="13sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -75,7 +75,7 @@
                 <Button
                     android:id="@+id/activateServerButton"
                     android:layout_width="0dp"
-                    android:layout_height="50dp"
+                    android:layout_height="46dp"
                     android:layout_marginEnd="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/button_secondary"
@@ -87,7 +87,7 @@
                 <Button
                     android:id="@+id/deleteServerButton"
                     android:layout_width="0dp"
-                    android:layout_height="50dp"
+                    android:layout_height="46dp"
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/button_outline"
@@ -100,7 +100,7 @@
             <Button
                 android:id="@+id/newServerButton"
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
+                android:layout_height="46dp"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/button_outline"
                 android:text="@string/new_server"
@@ -116,7 +116,7 @@
                 android:letterSpacing="0"
                 android:text="@string/settings_section_editor"
                 android:textColor="@color/lss_muted"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
 
             <EditText
@@ -128,7 +128,8 @@
                 android:hint="@string/server_name_hint"
                 android:inputType="text"
                 android:textColor="@color/lss_ink"
-                android:textColorHint="@color/lss_muted" />
+                android:textColorHint="@color/lss_muted"
+                android:textSize="14sp" />
 
             <EditText
                 android:id="@+id/baseUrlInput"
@@ -139,7 +140,8 @@
                 android:hint="@string/base_url_hint"
                 android:inputType="textUri"
                 android:textColor="@color/lss_ink"
-                android:textColorHint="@color/lss_muted" />
+                android:textColorHint="@color/lss_muted"
+                android:textSize="14sp" />
 
             <EditText
                 android:id="@+id/authTokenInput"
@@ -150,7 +152,8 @@
                 android:hint="@string/auth_token_hint"
                 android:inputType="textVisiblePassword"
                 android:textColor="@color/lss_ink"
-                android:textColorHint="@color/lss_muted" />
+                android:textColorHint="@color/lss_muted"
+                android:textSize="14sp" />
 
             <EditText
                 android:id="@+id/fingerprintInput"
@@ -161,7 +164,8 @@
                 android:hint="@string/fingerprint_hint"
                 android:inputType="textVisiblePassword"
                 android:textColor="@color/lss_ink"
-                android:textColorHint="@color/lss_muted" />
+                android:textColorHint="@color/lss_muted"
+                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/settingsStatusText"
@@ -171,24 +175,24 @@
                 android:lineSpacingExtra="2dp"
                 android:text="@string/settings_hint"
                 android:textColor="@color/lss_muted"
-                android:textSize="14sp" />
+                android:textSize="13sp" />
 
             <Button
                 android:id="@+id/saveButton"
                 android:layout_width="match_parent"
-                android:layout_height="54dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="16dp"
                 android:background="@drawable/button_primary"
                 android:text="@string/save_config"
                 android:textAllCaps="false"
                 android:textColor="@android:color/white"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <Button
                 android:id="@+id/backButton"
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
+                android:layout_height="46dp"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/button_outline"
                 android:text="@string/back_to_transfer"

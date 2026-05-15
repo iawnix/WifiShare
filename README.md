@@ -206,3 +206,12 @@ gradle assembleDebug
 - Android UI 字体从装饰性 serif/condensed 调整为系统无衬线字体，标题字号收敛，减少和系统界面的割裂感。
 - 主界面和设置界面根据系统状态栏/导航栏 inset 调整 padding，避免 Android 顶部状态栏遮挡内容。
 - 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认包名 `io.iaw.lanshare`、`versionCode 3`、`versionName 0.1.2`、`INTERNET` 权限；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。
+
+## 2026-05-15 Android 客户端更新
+
+- UI 调整为更接近 macOS 原生极简质感：浅灰背景、白色薄边框面板、graphite 文本、system blue 操作色、低阴影和小圆角控件。
+- 设置页增加 `adjustResize` 和 IME inset 处理；输入框获得焦点时会主动请求滚动区域把当前输入框移到键盘上方，避免输入法遮住正在编辑的配置项。
+- 增加 Android 桌面小组件 `WifiShare 快捷组件`：显示当前服务端，支持在多个已保存服务端之间轮换切换；“接收”按钮会打开 App 并直接拉取 Linux `phone` 队列文件。
+- 小组件会在 App 内切换、保存、删除服务端和配对链接保存后同步刷新。
+- APK 版本更新为 `versionCode 4`、`versionName 0.1.3`，并已复制到 `android/WifiShare-debug.apk`。
+- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认包名 `io.iaw.lanshare`、`versionCode 4`、`versionName 0.1.3`、`INTERNET` 权限和 `app-widget` 组件；`aapt dump xmltree` 确认 `WifiShareWidgetProvider`、widget provider metadata 以及 `windowSoftInputMode=adjustResize` 已进入 manifest；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境无法启动 ADB daemon，因此未做实机安装验证。
