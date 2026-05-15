@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.widget.RemoteViews
 import android.widget.Toast
 
@@ -25,10 +26,26 @@ class WifiShareWidgetProvider : AppWidgetProvider() {
             }
             updateAllWidgets(context)
         }
+        if (intent.action == ACTION_RECEIVE_QUEUE) {
+            try {
+                val serviceIntent = Intent(context, ReceiveQueueService::class.java).apply {
+                    action = ACTION_RECEIVE_QUEUE
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
+            } catch (exc: Exception) {
+                val message = exc.message ?: context.getString(R.string.receive_failed)
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     companion object {
         private const val ACTION_NEXT_SERVER = "io.iaw.lanshare.action.NEXT_SERVER"
+        private const val ACTION_RECEIVE_QUEUE = "io.iaw.lanshare.action.WIDGET_RECEIVE_QUEUE"
 
         fun updateAllWidgets(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -88,10 +105,10 @@ class WifiShareWidgetProvider : AppWidgetProvider() {
         }
 
         private fun receiveIntent(context: Context): PendingIntent {
-            val intent = Intent(context, ReceiveQueueService::class.java).apply {
-                action = MainActivity.ACTION_RECEIVE_QUEUE
+            val intent = Intent(context, WifiShareWidgetProvider::class.java).apply {
+                action = ACTION_RECEIVE_QUEUE
             }
-            return PendingIntent.getForegroundService(context, 2, intent, pendingIntentFlags())
+            return PendingIntent.getBroadcast(context, 2, intent, pendingIntentFlags())
         }
 
         private fun openMainIntent(context: Context): PendingIntent {

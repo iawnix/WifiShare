@@ -14,7 +14,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <View
+        <TextView
             android:layout_width="7dp"
             android:layout_height="7dp"
             android:layout_marginEnd="7dp"

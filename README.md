@@ -224,3 +224,11 @@ gradle assembleDebug
 - App 背景从纯浅灰改回更柔和的暖灰到薄荷雾面渐变，面板颜色也从纯白收回到暖白。
 - APK 版本更新为 `versionCode 5`、`versionName 0.1.4`，并已复制到 `android/WifiShare-debug.apk`。
 - 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 5`、`versionName 0.1.4`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`app-widget` 和 `other-services`；`aapt dump xmltree` 确认 `ReceiveQueueService`、`foregroundServiceType=dataSync`、widget provider metadata 和 `adjustResize`；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境无法启动 ADB daemon，因此未做实机安装验证。
+
+## 2026-05-15 Android 小组件兼容修复
+
+- 修复小组件布局兼容性：把 `RemoteViews` 不可靠的普通 `<View>` 状态点替换为 `TextView`，避免部分 launcher 直接让小组件不可用。
+- 小组件接收按钮改为先触发 `WifiShareWidgetProvider` 广播，再显式启动 `ReceiveQueueService`；如果服务启动失败，会通过 Toast 返回错误，而不是静默失效。
+- 增加 `POST_NOTIFICATIONS` 权限，并在 App 打开时为 Android 13+ 请求通知权限，保证后台接收进度和结果通知可见。
+- APK 版本更新为 `versionCode 6`、`versionName 0.1.5`，并已复制到 `android/WifiShare-debug.apk`。
+- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 6`、`versionName 0.1.5`、`POST_NOTIFICATIONS`、前台服务权限、`app-widget` 和 `other-services`；`aapt dump xmltree` 确认 `ReceiveQueueService`、`foregroundServiceType=dataSync` 和 widget provider metadata；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境无法启动 ADB daemon，因此未做实机安装验证。

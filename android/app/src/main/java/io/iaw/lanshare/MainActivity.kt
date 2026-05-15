@@ -1,7 +1,10 @@
 package io.iaw.lanshare
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
 import android.widget.Button
@@ -35,6 +38,7 @@ class MainActivity : Activity() {
         SystemBars.applyInsetPadding(findViewById(R.id.mainScroll))
 
         settingsStore = SettingsStore(this)
+        requestNotificationPermissionIfNeeded()
         bindViews()
         attachListeners()
         refreshReceiverCard()
@@ -298,7 +302,18 @@ class MainActivity : Activity() {
         return (value * resources.displayMetrics.density).toInt()
     }
 
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATION_PERMISSION)
+    }
+
     companion object {
         const val ACTION_RECEIVE_QUEUE = "io.iaw.lanshare.action.RECEIVE_QUEUE"
+        private const val REQUEST_NOTIFICATION_PERMISSION = 1001
     }
 }
