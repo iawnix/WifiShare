@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/lss_paper" />
+    <gradient
+        android:angle="315"
+        android:endColor="#DDEBE4"
+        android:startColor="@color/lss_paper"
+        android:type="linear" />
 </shape>

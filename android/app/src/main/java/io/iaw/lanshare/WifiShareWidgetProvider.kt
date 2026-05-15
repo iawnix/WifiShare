@@ -88,11 +88,10 @@ class WifiShareWidgetProvider : AppWidgetProvider() {
         }
 
         private fun receiveIntent(context: Context): PendingIntent {
-            val intent = Intent(context, MainActivity::class.java).apply {
+            val intent = Intent(context, ReceiveQueueService::class.java).apply {
                 action = MainActivity.ACTION_RECEIVE_QUEUE
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
-            return PendingIntent.getActivity(context, 2, intent, pendingIntentFlags())
+            return PendingIntent.getForegroundService(context, 2, intent, pendingIntentFlags())
         }
 
         private fun openMainIntent(context: Context): PendingIntent {

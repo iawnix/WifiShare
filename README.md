@@ -215,3 +215,12 @@ gradle assembleDebug
 - 小组件会在 App 内切换、保存、删除服务端和配对链接保存后同步刷新。
 - APK 版本更新为 `versionCode 4`、`versionName 0.1.3`，并已复制到 `android/WifiShare-debug.apk`。
 - 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认包名 `io.iaw.lanshare`、`versionCode 4`、`versionName 0.1.3`、`INTERNET` 权限和 `app-widget` 组件；`aapt dump xmltree` 确认 `WifiShareWidgetProvider`、widget provider metadata 以及 `windowSoftInputMode=adjustResize` 已进入 manifest；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境无法启动 ADB daemon，因此未做实机安装验证。
+
+## 2026-05-15 Android 小组件跟进
+
+- 小组件“接收”按钮改为启动 `ReceiveQueueService` 前台服务，不再跳转到 App 主界面；下载状态和结果通过系统通知与 Toast 返回。
+- 为 Android 14+ 的前台数据同步服务声明 `FOREGROUND_SERVICE` 和 `FOREGROUND_SERVICE_DATA_SYNC` 权限，并在 manifest 中注册 `ReceiveQueueService`。
+- 小组件视觉改为更接近灵动岛的深色胶囊：黑色圆角岛、状态点、LAN 标签、深色切换按钮和蓝色接收按钮。
+- App 背景从纯浅灰改回更柔和的暖灰到薄荷雾面渐变，面板颜色也从纯白收回到暖白。
+- APK 版本更新为 `versionCode 5`、`versionName 0.1.4`，并已复制到 `android/WifiShare-debug.apk`。
+- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 5`、`versionName 0.1.4`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`app-widget` 和 `other-services`；`aapt dump xmltree` 确认 `ReceiveQueueService`、`foregroundServiceType=dataSync`、widget provider metadata 和 `adjustResize`；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境无法启动 ADB daemon，因此未做实机安装验证。

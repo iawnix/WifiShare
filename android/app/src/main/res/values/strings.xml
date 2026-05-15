@@ -64,4 +64,9 @@
     <string name="widget_receive">接收</string>
     <string name="widget_open_settings">设置</string>
     <string name="widget_single_server">当前</string>
+    <string name="widget_mode_label">LAN</string>
+    <string name="receive_notification_channel">WifiShare 接收</string>
+    <string name="receive_notification_title">正在接收队列文件</string>
+    <string name="receive_notification_body">从当前 Linux 服务端拉取 phone 队列。</string>
+    <string name="receive_notification_done">WifiShare 接收完成</string>
 </resources>
