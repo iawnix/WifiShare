@@ -15,6 +15,8 @@ WifiShare 是一个局域网加密文件传输原型，用于 Android 手机和 
 - `android/`：Android App 源码。
 - `android/WifiShare-debug.apk`：最终保留的 debug APK。
 
+`server/state/` 保存本机证书、token、配对链接和传输队列，只用于本机运行，已被 Git 忽略，不应上传到公开仓库。
+
 ## 另一台电脑安装使用
 
 新电脑不要直接复用旧手机配置。每台电脑应重新生成自己的 `state/config.json`、证书、token 和配对链接。
@@ -25,6 +27,8 @@ WifiShare 是一个局域网加密文件传输原型，用于 Android 手机和 
    git clone https://github.com/iawnix/WifiShare.git
    cd WifiShare/server
    ```
+
+   也可以把这个仓库放在任意本地目录；后续命令以仓库根目录为基准。
 
 2. 确认依赖：
 
@@ -41,15 +45,16 @@ WifiShare 是一个局域网加密文件传输原型，用于 Android 手机和 
    ip -4 addr
    ```
 
-   选择手机能访问到的地址，例如 `192.168.1.50`，不要用 `127.0.0.1`。
+   选择手机能访问到的地址，不要用 `127.0.0.1`。
 
 4. 初始化新电脑服务端：
 
    ```bash
+   LAN_IP=192.168.1.50
    python3 -m lss_server init \
      --state-dir ./state \
      --server-name WifiShare \
-     --advertise-host 192.168.1.50
+     --advertise-host "$LAN_IP"
    ```
 
 5. 启动服务：
@@ -107,10 +112,11 @@ export LAN_SECURE_SHARE_DOWNLOAD_DIR="$HOME/Downloads/WifiShare"
    如果还没有初始化过，先运行：
 
    ```bash
+   LAN_IP=192.168.1.50
    python -m lss_server init \
      --state-dir ./state \
-     --server-name linux-host \
-     --advertise-host 192.168.1.50
+     --server-name WifiShare \
+     --advertise-host "$LAN_IP"
    ```
 
    不要用 `127.0.0.1`，要填手机能访问到的 Linux 局域网 IP。
@@ -175,11 +181,11 @@ phone /path/to/file.pdf
 server/systemd/wifishare.service
 ```
 
-安装前请先检查 `server/systemd/server.env.example` 里的路径。服务安装属于仓库外操作，默认不自动执行。
+安装前请先检查 `server/systemd/server.env.example` 里的路径。服务安装属于仓库外操作，默认不自动执行。如果仓库不在默认的 `~/WifiShare`，在 `~/.config/wifishare/server.env` 中设置 `WIFISHARE_HOME`。
 
 ## 构建
 
-Android 构建命令示例：
+Android 构建命令：
 
 ```bash
 cd WifiShare/android
@@ -209,12 +215,13 @@ gradle assembleDebug
 
 ## 2026-05-15 Android 客户端更新
 
-- UI 调整为更接近 macOS 原生极简质感：浅灰背景、白色薄边框面板、graphite 文本、system blue 操作色、低阴影和小圆角控件。
+- UI 改为更接近 macOS 原生极简质感的中性色系统：浅灰背景、白色薄边框面板、graphite 文本、system blue 操作色、低阴影和小圆角控件。
 - 设置页增加 `adjustResize` 和 IME inset 处理；输入框获得焦点时会主动请求滚动区域把当前输入框移到键盘上方，避免输入法遮住正在编辑的配置项。
 - 增加 Android 桌面小组件 `WifiShare 快捷组件`：显示当前服务端，支持在多个已保存服务端之间轮换切换；“接收”按钮会打开 App 并直接拉取 Linux `phone` 队列文件。
 - 小组件会在 App 内切换、保存、删除服务端和配对链接保存后同步刷新。
 - APK 版本更新为 `versionCode 4`、`versionName 0.1.3`，并已复制到 `android/WifiShare-debug.apk`。
-- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认包名 `io.iaw.lanshare`、`versionCode 4`、`versionName 0.1.3`、`INTERNET` 权限和 `app-widget` 组件；`aapt dump xmltree` 确认 `WifiShareWidgetProvider`、widget provider metadata 以及 `windowSoftInputMode=adjustResize` 已进入 manifest；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境无法启动 ADB daemon，因此未做实机安装验证。
+- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认包名 `io.iaw.lanshare`、`versionCode 4`、`versionName 0.1.3`、`INTERNET` 权限和 `app-widget` 组件；`aapt dump xmltree` 确认 `WifiShareWidgetProvider`、widget provider metadata 以及 `windowSoftInputMode=adjustResize` 已进入 manifest；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前沙箱无法启动 ADB daemon，因此未做实机安装验证。
+- 发布：已通过干净临时发布工作树推送到 `https://github.com/iawnix/WifiShare` 的 `main` 分支，提交 `96abf961f863907e275869965e84b676d6751b0c`；发布范围只包含 Android 代码、最终 APK 和公共 README 更新，未包含 `server/state/`、证书、pairing 文件、local.properties 或 build cache。
 
 ## 2026-05-15 Android 小组件跟进
 
@@ -223,7 +230,8 @@ gradle assembleDebug
 - 小组件视觉改为更接近灵动岛的深色胶囊：黑色圆角岛、状态点、LAN 标签、深色切换按钮和蓝色接收按钮。
 - App 背景从纯浅灰改回更柔和的暖灰到薄荷雾面渐变，面板颜色也从纯白收回到暖白。
 - APK 版本更新为 `versionCode 5`、`versionName 0.1.4`，并已复制到 `android/WifiShare-debug.apk`。
-- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 5`、`versionName 0.1.4`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`app-widget` 和 `other-services`；`aapt dump xmltree` 确认 `ReceiveQueueService`、`foregroundServiceType=dataSync`、widget provider metadata 和 `adjustResize`；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境无法启动 ADB daemon，因此未做实机安装验证。
+- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 5`、`versionName 0.1.4`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_DATA_SYNC`、`app-widget` 和 `other-services`；`aapt dump xmltree` 确认 `ReceiveQueueService`、`foregroundServiceType=dataSync`、widget provider metadata 和 `adjustResize`；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前沙箱仍无法启动 ADB daemon，因此未做实机安装验证。
+- 发布：已通过干净临时发布工作树推送到 `https://github.com/iawnix/WifiShare` 的 `main` 分支，提交 `6210613c357fcb59ffeb467f003c75f514953bac`；发布范围只包含 Android 代码、最终 APK 和公共 README 更新，未包含 `server/state/`、证书、pairing 文件、local.properties 或 build cache。
 
 ## 2026-05-15 Android 小组件兼容修复
 
@@ -231,4 +239,5 @@ gradle assembleDebug
 - 小组件接收按钮改为先触发 `WifiShareWidgetProvider` 广播，再显式启动 `ReceiveQueueService`；如果服务启动失败，会通过 Toast 返回错误，而不是静默失效。
 - 增加 `POST_NOTIFICATIONS` 权限，并在 App 打开时为 Android 13+ 请求通知权限，保证后台接收进度和结果通知可见。
 - APK 版本更新为 `versionCode 6`、`versionName 0.1.5`，并已复制到 `android/WifiShare-debug.apk`。
-- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 6`、`versionName 0.1.5`、`POST_NOTIFICATIONS`、前台服务权限、`app-widget` 和 `other-services`；`aapt dump xmltree` 确认 `ReceiveQueueService`、`foregroundServiceType=dataSync` 和 widget provider metadata；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境无法启动 ADB daemon，因此未做实机安装验证。
+- 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 6`、`versionName 0.1.5`、`POST_NOTIFICATIONS`、前台服务权限、`app-widget` 和 `other-services`；`aapt dump xmltree` 确认 `ReceiveQueueService`、`foregroundServiceType=dataSync` 和 widget provider metadata；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前沙箱仍无法启动 ADB daemon，因此未做实机安装验证。
+- 发布：已通过干净临时发布工作树推送到 `https://github.com/iawnix/WifiShare` 的 `main` 分支，提交 `e0c518e42ace6ab0cfd3bd74921e423bc0d19b15`；发布范围只包含 Android 代码、最终 APK 和公共 README 更新，未包含 `server/state/`、证书、pairing 文件、local.properties 或 build cache。

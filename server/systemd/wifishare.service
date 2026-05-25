@@ -5,10 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/WifiShare/server
 Environment=PYTHONUNBUFFERED=1
+Environment=WIFISHARE_HOME=%h/WifiShare
 EnvironmentFile=-%h/.config/wifishare/server.env
-ExecStart=%h/WifiShare/server/serve
+ExecStart=/bin/sh -lc 'cd "$WIFISHARE_HOME/server" && exec ./serve'
 Restart=on-failure
 RestartSec=3
 

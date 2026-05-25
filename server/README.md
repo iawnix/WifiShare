@@ -16,11 +16,12 @@
 ## 初始化
 
 ```bash
+LAN_IP=192.168.1.50
 cd WifiShare/server
 python -m lss_server init \
   --state-dir ./state \
-  --server-name linux-host \
-  --advertise-host 192.168.1.50
+  --server-name WifiShare \
+  --advertise-host "$LAN_IP"
 ```
 
 `advertise-host` 必须是手机能访问到的 Linux 局域网 IP。
