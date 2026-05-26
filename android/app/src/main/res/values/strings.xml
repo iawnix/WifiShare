@@ -53,6 +53,7 @@
     <string name="checking_queue">正在检查 Linux 队列...</string>
     <string name="upload_progress">已发送 %1$d/%2$d：%3$s</string>
     <string name="upload_complete">已发送 %1$d 个文件。</string>
+    <string name="upload_failed">发送失败。</string>
     <string name="download_complete">已从 Linux 保存 %1$d 个文件。</string>
     <string name="receive_failed">从 Linux 接收失败。</string>
     <string name="pending_share_count">%1$d 个文件待发送</string>
@@ -65,6 +66,10 @@
     <string name="widget_open_settings">设置</string>
     <string name="widget_single_server">当前</string>
     <string name="widget_mode_label">LAN</string>
+    <string name="upload_notification_channel">WifiShare 发送</string>
+    <string name="upload_notification_title">正在发送文件</string>
+    <string name="upload_notification_body">发送到当前 Linux 服务端。</string>
+    <string name="upload_notification_done">WifiShare 发送完成</string>
     <string name="receive_notification_channel">WifiShare 接收</string>
     <string name="receive_notification_title">正在接收队列文件</string>
     <string name="receive_notification_body">从当前 Linux 服务端拉取 phone 队列。</string>

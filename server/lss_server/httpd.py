@@ -43,6 +43,7 @@ class WifiShareServer(ThreadingHTTPServer):
         self.ssl_context = ssl_context
         self.last_upload: UploadRecord | None = None
         self._upload_lock = threading.Lock()
+        self._outbox_lock = threading.Lock()
 
     def get_request(self):  # type: ignore[override]
         raw_socket, client_address = super().get_request()
@@ -207,7 +208,8 @@ class UploadRequestHandler(BaseHTTPRequestHandler):
             self._write_unauthorized()
             return
 
-        transfer = next_phone_transfer(self.app.config.phone_queue_path)
+        with self.app._outbox_lock:
+            transfer = next_phone_transfer(self.app.config.phone_queue_path)
         if transfer is None:
             self._write_empty(HTTPStatus.NO_CONTENT)
             return
@@ -220,6 +222,7 @@ class UploadRequestHandler(BaseHTTPRequestHandler):
                 "sha256": transfer.sha256,
                 "size": transfer.size,
                 "queued_at": transfer.queued_at,
+                "lease_expires_at": transfer.lease_expires_at,
                 "content_path": f"/api/v1/outbox/{transfer.transfer_id}/content",
                 "ack_path": f"/api/v1/outbox/{transfer.transfer_id}/ack",
             },
@@ -249,7 +252,9 @@ class UploadRequestHandler(BaseHTTPRequestHandler):
             self._write_unauthorized()
             return
 
-        if not acknowledge_phone_transfer(self.app.config.phone_queue_path, transfer_id):
+        with self.app._outbox_lock:
+            acknowledged = acknowledge_phone_transfer(self.app.config.phone_queue_path, transfer_id)
+        if not acknowledged:
             self._write_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
             return
 

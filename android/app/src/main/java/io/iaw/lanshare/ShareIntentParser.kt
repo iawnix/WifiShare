@@ -26,6 +26,10 @@ object ShareIntentParser {
         }
     }
 
+    fun fromUris(context: Context, uris: List<Uri>): List<SharedItem> {
+        return uris.map { buildItem(context, it) }
+    }
+
     private fun singleUri(intent: Intent): Uri? {
         return if (Build.VERSION.SDK_INT >= 33) {
             intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)

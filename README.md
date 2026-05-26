@@ -241,3 +241,12 @@ gradle assembleDebug
 - APK 版本更新为 `versionCode 6`、`versionName 0.1.5`，并已复制到 `android/WifiShare-debug.apk`。
 - 验证：`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 6`、`versionName 0.1.5`、`POST_NOTIFICATIONS`、前台服务权限、`app-widget` 和 `other-services`；`aapt dump xmltree` 确认 `ReceiveQueueService`、`foregroundServiceType=dataSync` 和 widget provider metadata；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前沙箱仍无法启动 ADB daemon，因此未做实机安装验证。
 - 发布：已通过干净临时发布工作树推送到 `https://github.com/iawnix/WifiShare` 的 `main` 分支，提交 `e0c518e42ace6ab0cfd3bd74921e423bc0d19b15`；发布范围只包含 Android 代码、最终 APK 和公共 README 更新，未包含 `server/state/`、证书、pairing 文件、local.properties 或 build cache。
+
+## 2026-05-25 可靠性与安全优化
+
+- Android 关闭系统备份，避免服务端 token、证书指纹和已保存服务端配置进入设备备份。
+- 普通打开 App 不再自动拉取 Linux 队列；接收只由“接收队列文件”按钮、小组件接收按钮或显式接收入口触发。
+- 手机发送到电脑改为 `UploadService` 前台服务，发送过程通过系统通知展示，降低大文件发送时 Activity 被回收导致中断的风险。
+- Linux 到手机的队列增加 `pending -> inflight -> ack` 领取流程；未 ack 的 inflight 文件有 lease，到期后可重新回到 pending，避免 App 和小组件并发拉取时重复接收同一个文件。
+- APK 版本更新为 `versionCode 7`、`versionName 0.1.6`，并已复制到 `android/WifiShare-debug.apk`。
+- 验证：`python3 -m py_compile server/lss_server/*.py` 通过；`python3 -m unittest discover -s tests -v` 通过 8 个服务端测试；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 7`、`versionName 0.1.6`、通知和前台服务权限；`aapt dump xmltree` 确认 `allowBackup=false`、`ReceiveQueueService` 和 `UploadService` 均为 `foregroundServiceType=dataSync`；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境未做 ADB 实机安装验证。

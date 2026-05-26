@@ -16,6 +16,7 @@ from lss_server.config import ServerConfig, load_config
 from lss_server.files import normalize_sha256, sanitize_filename
 from lss_server.httpd import create_server
 from lss_server.main import phone_main
+from lss_server.outbox import next_phone_transfer, queue_phone_file
 from lss_server.pairing import build_pairing_payload, build_pairing_uri
 
 
@@ -300,6 +301,10 @@ class UploadServerTests(unittest.TestCase):
                 next_response = _urlopen_direct(next_request, context=context)
                 next_payload = json.loads(next_response.read().decode("utf-8"))
                 self.assertEqual(next_payload["filename"], "from-linux.txt")
+                self.assertIn("lease_expires_at", next_payload)
+
+                duplicate_next_response = _urlopen_direct(next_request, context=context)
+                self.assertEqual(duplicate_next_response.status, 204)
 
                 transfer_id = next_payload["transfer_id"]
                 content_request = request.Request(
@@ -324,6 +329,28 @@ class UploadServerTests(unittest.TestCase):
                 )
                 empty_response = _urlopen_direct(empty_request, context=context)
                 self.assertEqual(empty_response.status, 204)
+
+    def test_phone_queue_recovers_expired_lease(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_dir = Path(tmp_dir_name)
+            queue_dir = tmp_dir / "phone-outbox"
+            source_path = tmp_dir / "from-linux.txt"
+            source_path.write_bytes(b"hello phone")
+
+            queued = queue_phone_file(queue_dir, source_path)
+            leased = next_phone_transfer(queue_dir)
+            self.assertIsNotNone(leased)
+            self.assertEqual(leased.transfer_id, queued.transfer_id)
+            self.assertIsNone(next_phone_transfer(queue_dir))
+
+            inflight_meta = queue_dir / "inflight" / f"{queued.transfer_id}.json"
+            payload = json.loads(inflight_meta.read_text(encoding="utf-8"))
+            payload["lease_expires_at"] = "2000-01-01T00:00:00Z"
+            inflight_meta.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+            recovered = next_phone_transfer(queue_dir)
+            self.assertIsNotNone(recovered)
+            self.assertEqual(recovered.transfer_id, queued.transfer_id)
 
 
 if __name__ == "__main__":

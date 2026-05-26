@@ -2,7 +2,10 @@ package io.iaw.lanshare
 
 import android.Manifest
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -29,8 +32,22 @@ class MainActivity : Activity() {
     private val networkExecutor = Executors.newSingleThreadExecutor()
     private var pendingItems: List<SharedItem> = emptyList()
     private var serverProfiles: List<TransferConfig> = emptyList()
+    private var uploadInFlight = false
     @Volatile
     private var queueCheckInFlight = false
+    private val uploadCompletionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != UploadService.ACTION_UPLOAD_FINISHED) {
+                return
+            }
+            uploadInFlight = false
+            val message = intent.getStringExtra(UploadService.EXTRA_RESULT_MESSAGE)
+                ?: getString(R.string.upload_complete, pendingItems.size)
+            statusView.text = message
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+            updateSendButtonState()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +57,7 @@ class MainActivity : Activity() {
         settingsStore = SettingsStore(this)
         requestNotificationPermissionIfNeeded()
         bindViews()
+        registerUploadCompletionReceiver()
         attachListeners()
         refreshReceiverCard()
         handleAppIntent(intent)
@@ -60,6 +78,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        unregisterReceiver(uploadCompletionReceiver)
         networkExecutor.shutdownNow()
     }
 
@@ -90,37 +109,20 @@ class MainActivity : Activity() {
                 statusView.text = getString(R.string.no_pending_share)
                 return@setOnClickListener
             }
-            sendButton.isEnabled = false
-            sendButton.alpha = 0.55f
+            uploadInFlight = true
+            updateSendButtonState()
             statusView.text = getString(R.string.uploading)
-            networkExecutor.execute {
-                val client = UploadClient(this, config)
-                val failures = mutableListOf<String>()
-                pendingItems.forEachIndexed { index, item ->
-                    try {
-                        client.upload(item)
-                        runOnUiThread {
-                            statusView.text = getString(
-                                R.string.upload_progress,
-                                index + 1,
-                                pendingItems.size,
-                                item.displayName,
-                            )
-                        }
-                    } catch (exc: Exception) {
-                        failures += "${item.displayName}: ${exc.message}"
-                    }
+            val serviceIntent = UploadService.createIntent(this, config, pendingItems)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent)
+                } else {
+                    startService(serviceIntent)
                 }
-                runOnUiThread {
-                    updateSendButtonState()
-                    if (failures.isEmpty()) {
-                        val message = getString(R.string.upload_complete, pendingItems.size)
-                        statusView.text = message
-                        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                    } else {
-                        statusView.text = failures.joinToString(separator = "\n")
-                    }
-                }
+            } catch (exc: Exception) {
+                uploadInFlight = false
+                updateSendButtonState()
+                statusView.text = exc.message ?: getString(R.string.upload_failed)
             }
         }
 
@@ -130,13 +132,13 @@ class MainActivity : Activity() {
     }
 
     private fun handleAppIntent(intent: Intent?) {
-        val pairedFromLink = handlePairingIntent(intent)
+        handlePairingIntent(intent)
         if (intent?.action == ACTION_RECEIVE_QUEUE) {
             handleShareIntent(intent, autoReceiveWhenEmpty = false)
             receiveQueuedFiles(auto = false)
             return
         }
-        handleShareIntent(intent, autoReceiveWhenEmpty = !pairedFromLink)
+        handleShareIntent(intent, autoReceiveWhenEmpty = false)
     }
 
     private fun handlePairingIntent(intent: Intent?): Boolean {
@@ -289,7 +291,7 @@ class MainActivity : Activity() {
     }
 
     private fun updateSendButtonState() {
-        val enabled = pendingItems.isNotEmpty()
+        val enabled = pendingItems.isNotEmpty() && !uploadInFlight
         sendButton.isEnabled = enabled
         sendButton.alpha = if (enabled) 1.0f else 0.55f
     }
@@ -310,6 +312,16 @@ class MainActivity : Activity() {
             return
         }
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATION_PERMISSION)
+    }
+
+    private fun registerUploadCompletionReceiver() {
+        val filter = IntentFilter(UploadService.ACTION_UPLOAD_FINISHED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(uploadCompletionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(uploadCompletionReceiver, filter)
+        }
     }
 
     companion object {
