@@ -5,47 +5,63 @@ import android.graphics.Rect
 import android.os.Bundle
 import android.text.TextUtils
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import android.view.ViewGroup
 
 class SettingsActivity : Activity() {
+    private lateinit var settingsScrollView: View
+    private lateinit var settingsCardView: View
     private lateinit var savedServersListView: LinearLayout
     private lateinit var activeServerStatusView: TextView
+    private lateinit var savedServersLabelView: TextView
+    private lateinit var editorLabelView: TextView
     private lateinit var serverNameView: EditText
     private lateinit var baseUrlView: EditText
     private lateinit var authTokenView: EditText
     private lateinit var fingerprintView: EditText
     private lateinit var statusView: TextView
-    private lateinit var activateServerButton: Button
-    private lateinit var deleteServerButton: Button
-    private lateinit var newServerButton: Button
-    private lateinit var saveButton: Button
+    private lateinit var activateServerButton: ImageButton
+    private lateinit var deleteServerButton: ImageButton
+    private lateinit var newServerButton: ImageButton
+    private lateinit var saveButton: ImageButton
     private lateinit var backButton: ImageButton
+    private lateinit var themeToggleButton: ImageButton
 
     private lateinit var settingsStore: SettingsStore
+    private lateinit var themeMode: ThemeModeSetting
+    private lateinit var palette: ThemePalette
     private var savedProfiles: List<TransferConfig> = emptyList()
     private var selectedProfileKey: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        settingsStore = SettingsStore(this)
+        themeMode = settingsStore.loadThemeMode()
+        palette = AppTheme.palette(themeMode)
+        AppTheme.applyToActivity(this, palette)
         setContentView(R.layout.activity_settings)
         SystemBars.applyInsetPadding(findViewById(R.id.settingsScroll), includeIme = true)
 
-        settingsStore = SettingsStore(this)
         bindViews()
+        applyTheme()
         installImeAwareFocus()
         attachListeners()
         restoreSavedConfig()
     }
 
     private fun bindViews() {
+        settingsScrollView = findViewById(R.id.settingsScroll)
+        settingsCardView = findViewById(R.id.settingsCard)
         savedServersListView = findViewById(R.id.savedServersList)
         activeServerStatusView = findViewById(R.id.activeServerStatusText)
+        savedServersLabelView = findViewById(R.id.savedServersLabel)
+        editorLabelView = findViewById(R.id.editorLabel)
         serverNameView = findViewById(R.id.serverNameInput)
         baseUrlView = findViewById(R.id.baseUrlInput)
         authTokenView = findViewById(R.id.authTokenInput)
@@ -56,6 +72,7 @@ class SettingsActivity : Activity() {
         newServerButton = findViewById(R.id.newServerButton)
         saveButton = findViewById(R.id.saveButton)
         backButton = findViewById(R.id.backButton)
+        themeToggleButton = findViewById(R.id.settingsThemeToggleButton)
     }
 
     private fun restoreSavedConfig() {
@@ -112,6 +129,15 @@ class SettingsActivity : Activity() {
 
         backButton.setOnClickListener {
             finish()
+        }
+
+        themeToggleButton.setOnClickListener {
+            themeMode = themeMode.toggled()
+            settingsStore.saveThemeMode(themeMode)
+            palette = AppTheme.palette(themeMode)
+            AppTheme.applyToActivity(this, palette)
+            applyTheme()
+            renderSavedServers()
         }
     }
 
@@ -176,16 +202,15 @@ class SettingsActivity : Activity() {
                 }
             }
 
-            val switchButton = Button(this).apply {
-                text = getString(R.string.use_selected_server)
-                setAllCaps(false)
-                textSize = 13f
-                maxLines = 1
+            val switchButton = ImageButton(this).apply {
+                setImageResource(R.drawable.ic_check)
+                contentDescription = getString(R.string.activate_server)
+                scaleType = ImageView.ScaleType.CENTER
+                setPadding(dp(10), dp(10), dp(10), dp(10))
                 isEnabled = !isActive
                 alpha = if (isActive) 0.55f else 1.0f
-                setTextColor(getColor(if (isActive) R.color.lss_muted else R.color.lss_teal))
-                setBackgroundResource(R.drawable.button_outline)
-                layoutParams = LinearLayout.LayoutParams(dp(90), dp(46))
+                AppTheme.applyIconButton(this, palette, if (isActive) palette.success else palette.accent)
+                layoutParams = LinearLayout.LayoutParams(dp(46), dp(46))
                 setOnClickListener {
                     if (settingsStore.setActive(config)) {
                         val message = getString(R.string.server_switched, config.serverName)
@@ -267,8 +292,11 @@ class SettingsActivity : Activity() {
             ellipsize = TextUtils.TruncateAt.END
             isEnabled = enabled
             alpha = if (enabled) 1.0f else 0.55f
-            setTextColor(getColor(if (highlighted) android.R.color.white else R.color.lss_teal))
-            setBackgroundResource(if (highlighted) R.drawable.button_secondary else R.drawable.button_outline)
+            if (highlighted) {
+                AppTheme.applySecondaryButton(this, palette)
+            } else {
+                AppTheme.applyOutlineButton(this, palette)
+            }
         }
     }
 
@@ -283,5 +311,23 @@ class SettingsActivity : Activity() {
 
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
+    }
+
+    private fun applyTheme() {
+        AppTheme.applyBackground(settingsScrollView, palette)
+        AppTheme.applyCard(settingsCardView, palette)
+        themeToggleButton.setImageResource(if (palette.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
+        AppTheme.applyIconButton(backButton, palette)
+        AppTheme.applyIconButton(themeToggleButton, palette)
+        AppTheme.applyIconButton(saveButton, palette, palette.success)
+        AppTheme.applyIconButton(activateServerButton, palette, palette.success)
+        AppTheme.applyIconButton(deleteServerButton, palette, palette.danger)
+        AppTheme.applyIconButton(newServerButton, palette, palette.accent)
+        listOf(serverNameView, baseUrlView, authTokenView, fingerprintView).forEach {
+            AppTheme.applyInput(it, palette)
+        }
+        AppTheme.applyText(settingsScrollView, palette)
+        AppTheme.applySectionLabel(savedServersLabelView, palette)
+        AppTheme.applySectionLabel(editorLabelView, palette)
     }
 }

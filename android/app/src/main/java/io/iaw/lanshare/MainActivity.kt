@@ -26,10 +26,13 @@ class MainActivity : Activity() {
     private lateinit var statusView: TextView
     private lateinit var serverQuickButtonsView: LinearLayout
     private lateinit var settingsButton: ImageButton
+    private lateinit var themeToggleButton: ImageButton
     private lateinit var sendButton: Button
     private lateinit var receiveButton: Button
 
     private lateinit var settingsStore: SettingsStore
+    private lateinit var themeMode: ThemeModeSetting
+    private lateinit var palette: ThemePalette
     private val networkExecutor = Executors.newSingleThreadExecutor()
     private var pendingItems: List<SharedItem> = emptyList()
     private var serverProfiles: List<TransferConfig> = emptyList()
@@ -52,12 +55,16 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        settingsStore = SettingsStore(this)
+        themeMode = settingsStore.loadThemeMode()
+        palette = AppTheme.palette(themeMode)
+        AppTheme.applyToActivity(this, palette)
         setContentView(R.layout.activity_main)
         SystemBars.applyInsetPadding(findViewById(R.id.mainScroll))
 
-        settingsStore = SettingsStore(this)
         requestNotificationPermissionIfNeeded()
         bindViews()
+        applyTheme()
         registerUploadCompletionReceiver()
         attachListeners()
         refreshReceiverCard()
@@ -67,6 +74,13 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (::settingsStore.isInitialized) {
+            val latestMode = settingsStore.loadThemeMode()
+            if (latestMode != themeMode) {
+                themeMode = latestMode
+                palette = AppTheme.palette(themeMode)
+                AppTheme.applyToActivity(this, palette)
+                applyTheme()
+            }
             refreshReceiverCard()
         }
     }
@@ -91,6 +105,7 @@ class MainActivity : Activity() {
         statusView = findViewById(R.id.statusText)
         serverQuickButtonsView = findViewById(R.id.serverQuickButtons)
         settingsButton = findViewById(R.id.settingsButton)
+        themeToggleButton = findViewById(R.id.themeToggleButton)
         sendButton = findViewById(R.id.sendButton)
         receiveButton = findViewById(R.id.receiveButton)
     }
@@ -98,6 +113,15 @@ class MainActivity : Activity() {
     private fun attachListeners() {
         settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        themeToggleButton.setOnClickListener {
+            themeMode = themeMode.toggled()
+            settingsStore.saveThemeMode(themeMode)
+            palette = AppTheme.palette(themeMode)
+            AppTheme.applyToActivity(this, palette)
+            applyTheme()
+            refreshReceiverCard()
         }
 
         sendButton.setOnClickListener {
@@ -280,8 +304,11 @@ class MainActivity : Activity() {
             minWidth = dp(86)
             isEnabled = enabled
             alpha = if (enabled) 1.0f else 0.55f
-            setTextColor(getColor(if (active) android.R.color.white else R.color.lss_teal))
-            setBackgroundResource(if (active) R.drawable.button_secondary else R.drawable.button_outline)
+            if (active) {
+                AppTheme.applySecondaryButton(this, palette)
+            } else {
+                AppTheme.applyOutlineButton(this, palette)
+            }
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 dp(40),
@@ -289,6 +316,20 @@ class MainActivity : Activity() {
                 marginEnd = dp(8)
             }
         }
+    }
+
+    private fun applyTheme() {
+        AppTheme.applyBackground(findViewById(R.id.mainScroll), palette)
+        AppTheme.applyCard(findViewById(R.id.receiverCard), palette)
+        AppTheme.applyCard(findViewById(R.id.transferCard), palette)
+        AppTheme.applyIconButton(settingsButton, palette)
+        themeToggleButton.setImageResource(if (palette.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
+        AppTheme.applyIconButton(themeToggleButton, palette)
+        AppTheme.applyPrimaryButton(sendButton, palette)
+        AppTheme.applySecondaryButton(receiveButton, palette)
+        AppTheme.applyText(findViewById(R.id.mainScroll), palette)
+        AppTheme.applyPill(receiverStatusView, palette)
+        AppTheme.applyPill(statusView, palette)
     }
 
     private fun updateSendButtonState() {

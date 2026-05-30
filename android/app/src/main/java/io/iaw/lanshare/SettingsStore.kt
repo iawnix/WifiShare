@@ -82,6 +82,17 @@ class SettingsStore(context: Context) {
         return true
     }
 
+    fun loadThemeMode(): ThemeModeSetting {
+        val raw = preferences.getString(KEY_THEME_MODE, ThemeModeSetting.LIGHT.name) ?: ThemeModeSetting.LIGHT.name
+        return runCatching { ThemeModeSetting.valueOf(raw) }.getOrDefault(ThemeModeSetting.LIGHT)
+    }
+
+    fun saveThemeMode(mode: ThemeModeSetting) {
+        preferences.edit()
+            .putString(KEY_THEME_MODE, mode.name)
+            .apply()
+    }
+
     private fun parseProfiles(raw: String?): List<TransferConfig> {
         if (raw.isNullOrBlank()) {
             return emptyList()
@@ -162,5 +173,6 @@ class SettingsStore(context: Context) {
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_CERT_SHA256 = "cert_sha256"
+        private const val KEY_THEME_MODE = "theme_mode"
     }
 }

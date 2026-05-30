@@ -30,18 +30,42 @@
                 android:src="@drawable/ic_arrow_back" />
 
             <TextView
+                android:id="@+id/settingsTitleText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
+                android:layout_marginEnd="8dp"
                 android:layout_weight="1"
                 android:fontFamily="sans-serif"
                 android:text="@string/settings_title"
                 android:textColor="@color/lss_ink"
                 android:textSize="24sp"
                 android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/settingsThemeToggleButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/icon_button_surface"
+                android:contentDescription="@string/toggle_theme"
+                android:padding="10dp"
+                android:scaleType="center"
+                android:src="@drawable/ic_moon" />
+
+            <ImageButton
+                android:id="@+id/saveButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/icon_button_surface"
+                android:contentDescription="@string/save_config"
+                android:padding="10dp"
+                android:scaleType="center"
+                android:src="@drawable/ic_check" />
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/settingsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
@@ -51,10 +75,12 @@
             android:padding="16dp">
 
             <TextView
+                android:id="@+id/savedServersLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0"
+                android:tag="muted"
                 android:text="@string/settings_section_saved_servers"
                 android:textColor="@color/lss_muted"
                 android:textSize="11sp"
@@ -72,6 +98,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
+                android:tag="muted"
                 android:text="@string/no_saved_servers"
                 android:textColor="@color/lss_muted"
                 android:textSize="13sp" />
@@ -82,57 +109,49 @@
                 android:layout_marginTop="10dp"
                 android:orientation="horizontal">
 
-                <Button
+                <ImageButton
                     android:id="@+id/activateServerButton"
-                    android:layout_width="0dp"
+                    android:layout_width="46dp"
                     android:layout_height="46dp"
                     android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:drawableStart="@drawable/ic_check_on_dark"
-                    android:drawablePadding="8dp"
-                    android:gravity="center"
-                    android:text="@string/use_selected_server"
-                    android:textAllCaps="false"
-                    android:textColor="@android:color/white"
-                    android:textStyle="bold" />
+                    android:background="@drawable/icon_button_surface"
+                    android:contentDescription="@string/activate_server"
+                    android:padding="10dp"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_check" />
 
-                <Button
+                <ImageButton
                     android:id="@+id/deleteServerButton"
-                    android:layout_width="0dp"
+                    android:layout_width="46dp"
                     android:layout_height="46dp"
                     android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_outline"
-                    android:drawableStart="@drawable/ic_delete"
-                    android:drawablePadding="8dp"
-                    android:gravity="center"
-                    android:text="@string/delete_selected_server"
-                    android:textAllCaps="false"
-                    android:textColor="@color/lss_teal"
-                    android:textStyle="bold" />
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/icon_button_surface"
+                    android:contentDescription="@string/delete_server"
+                    android:padding="10dp"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_delete" />
+
+                <ImageButton
+                    android:id="@+id/newServerButton"
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/icon_button_surface"
+                    android:contentDescription="@string/new_server"
+                    android:padding="10dp"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_add" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/newServerButton"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/button_outline"
-                android:drawableStart="@drawable/ic_add"
-                android:drawablePadding="8dp"
-                android:gravity="center"
-                android:text="@string/new_server"
-                android:textAllCaps="false"
-                android:textColor="@color/lss_teal"
-                android:textStyle="bold" />
-
             <TextView
+                android:id="@+id/editorLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0"
+                android:tag="muted"
                 android:text="@string/settings_section_editor"
                 android:textColor="@color/lss_muted"
                 android:textSize="11sp"
@@ -192,24 +211,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 android:lineSpacingExtra="2dp"
+                android:tag="muted"
                 android:text="@string/settings_hint"
                 android:textColor="@color/lss_muted"
                 android:textSize="13sp" />
-
-            <Button
-                android:id="@+id/saveButton"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="16dp"
-                android:background="@drawable/button_primary"
-                android:drawableStart="@drawable/ic_check_on_dark"
-                android:drawablePadding="8dp"
-                android:gravity="center"
-                android:text="@string/save_config"
-                android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="15sp"
-                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

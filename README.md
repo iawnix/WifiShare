@@ -266,3 +266,14 @@ gradle assembleDebug
 - 验证：`./install_wifishare -h` 通过；隔离 HOME 的安装脚本测试确认 `~/Relay` 展开正确且未生成 `pairing.json` / `pairing-uri.txt`；`python3 -m py_compile server/lss_server/*.py server/tests/test_server.py` 通过；`python3 -m unittest discover -s tests -v` 通过 9 个服务端测试；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 8`、`versionName 0.1.7`、通知和前台服务权限；`aapt dump xmltree` 确认 `allowBackup=false`、widget、`ReceiveQueueService`、`UploadService` 和 `foregroundServiceType=dataSync`；`apksigner verify --verbose --print-certs android/WifiShare-debug.apk` 确认 v2 签名通过。
 - APK SHA-256：`b048f9ac2cb9ff819da668aef554a0d9b792081ff0c4e0ea37d7ad13e797528f`。
 - 风险：当前环境未做 ADB 实机安装验证。
+
+## 2026-05-30 Android 明暗主题与设置页优化
+
+- App 增加手动明亮/黑暗主题切换，主题选择保存在本地设置中，首页和设置页共享。
+- 主界面和设置页改为更接近 macOS 的浅灰/深灰背景、白色或深色面板、薄边框、低阴影和 system blue 操作色，强化背景与卡片层次。
+- 设置页顶部保存、明暗切换、返回，以及启用、删除、新增等操作改为图标按钮；服务端列表里的启用入口也改为图标化。
+- 新增运行时主题工具 `AppTheme` 和 `GradientDrawableFactory`，减少对静态浅色 drawable 的依赖。
+- APK 版本更新为 `versionCode 9`、`versionName 0.1.8`，并已复制到 `android/WifiShare-debug.apk`。
+- 验证：`git diff --check` 通过；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认包名 `io.iaw.lanshare`、`versionCode 9`、`versionName 0.1.8`、通知和前台服务权限；`apksigner verify --verbose --print-certs android/WifiShare-debug.apk` 确认 v2 签名通过。
+- APK SHA-256：`fb3118e3af8ccb8bd84150e1a38029b1b6293c4229334c11f08110de11cddbe8`。
+- 风险：当前环境未做 ADB 实机安装和截图验证。

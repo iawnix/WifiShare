@@ -47,6 +47,17 @@
             </LinearLayout>
 
             <ImageButton
+                android:id="@+id/themeToggleButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/icon_button_surface"
+                android:contentDescription="@string/toggle_theme"
+                android:padding="10dp"
+                android:scaleType="center"
+                android:src="@drawable/ic_moon" />
+
+            <ImageButton
                 android:id="@+id/settingsButton"
                 android:layout_width="44dp"
                 android:layout_height="44dp"
@@ -58,6 +69,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/receiverCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
@@ -82,6 +94,7 @@
                 android:layout_marginTop="6dp"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:tag="muted"
                 android:text="@string/receiver_url_empty"
                 android:textColor="@color/lss_muted"
                 android:textSize="13sp" />
@@ -103,6 +116,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/transferCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -116,6 +130,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:lineSpacingExtra="3dp"
+                android:tag="muted"
                 android:text="@string/no_pending_share"
                 android:textColor="@color/lss_muted"
                 android:textSize="14sp" />
