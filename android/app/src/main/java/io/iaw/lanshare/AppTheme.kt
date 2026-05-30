@@ -5,10 +5,8 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
-import android.os.Build
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowInsetsController
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -97,24 +95,10 @@ object AppTheme {
     fun applyToActivity(activity: Activity, palette: ThemePalette) {
         activity.window.statusBarColor = palette.backgroundTop
         activity.window.navigationBarColor = palette.backgroundBottom
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val appearance = if (palette.isDark) {
-                0
-            } else {
-                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
-                    WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
-            }
-            activity.window.insetsController?.setSystemBarsAppearance(
-                appearance,
-                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
-                    WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
-            )
+        activity.window.decorView.systemUiVisibility = if (palette.isDark) {
+            0
         } else {
-            activity.window.decorView.systemUiVisibility = if (palette.isDark) {
-                0
-            } else {
-                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-            }
+            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         }
     }
 

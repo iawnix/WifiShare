@@ -277,3 +277,10 @@ gradle assembleDebug
 - 验证：`git diff --check` 通过；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认包名 `io.iaw.lanshare`、`versionCode 9`、`versionName 0.1.8`、通知和前台服务权限；`apksigner verify --verbose --print-certs android/WifiShare-debug.apk` 确认 v2 签名通过。
 - APK SHA-256：`fb3118e3af8ccb8bd84150e1a38029b1b6293c4229334c11f08110de11cddbe8`。
 - 风险：当前环境未做 ADB 实机安装和截图验证。
+
+## 2026-05-30 Android 启动崩溃热修复
+
+- 修复主题层直接引用 API 30 `WindowInsetsController` 导致 Android 10 / API 29 设备启动闪退的风险，系统栏明暗设置改回 `systemUiVisibility` 兼容路径。
+- APK 版本更新为 `versionCode 10`、`versionName 0.1.9`，并已复制到 `android/WifiShare-debug.apk`。
+- 验证：`git diff --check` 通过；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 10`、`versionName 0.1.9`；`apksigner verify --verbose --print-certs android/WifiShare-debug.apk` 确认 v2 签名通过。
+- APK SHA-256：`8e97fde78f17ddb39825c8034f39fd8add83685ee8d9af42013e64ddf216429a`。
