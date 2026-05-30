@@ -124,6 +124,11 @@ object AppTheme {
         button.imageTintList = ColorStateList.valueOf(tint)
     }
 
+    fun applyAccentIconButton(button: ImageButton, palette: ThemePalette, tint: Int = Color.WHITE) {
+        button.background = GradientDrawableFactory.filledButton(palette.accent, palette.accentPressed)
+        button.imageTintList = ColorStateList.valueOf(tint)
+    }
+
     fun applyPrimaryButton(button: Button, palette: ThemePalette) {
         button.background = GradientDrawableFactory.filledButton(palette.accent, palette.accentPressed)
         button.setTextColor(Color.WHITE)

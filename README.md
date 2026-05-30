@@ -284,3 +284,13 @@ gradle assembleDebug
 - APK 版本更新为 `versionCode 10`、`versionName 0.1.9`，并已复制到 `android/WifiShare-debug.apk`。
 - 验证：`git diff --check` 通过；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 10`、`versionName 0.1.9`；`apksigner verify --verbose --print-certs android/WifiShare-debug.apk` 确认 v2 签名通过。
 - APK SHA-256：`8e97fde78f17ddb39825c8034f39fd8add83685ee8d9af42013e64ddf216429a`。
+
+## 2026-05-30 Android 原生 UI 小改
+
+- 主页发送/接收从大块文字按钮改为轻量图标 action，保留状态文本展示待发送文件和接收结果。
+- 设置页收敛为服务端配置维护：选择、编辑、保存、新增、删除；不再提供“启用/当前切换”操作，当前传输目标仍在首页和小组件切换。
+- 设置页保存配置不再默认切换当前目标；若编辑的是当前目标，则保留当前目标并更新其配置。
+- 小组件增加接收中状态：点击接收后显示 `接收中` 和不确定进度条，接收完成后恢复。
+- APK 版本更新为 `versionCode 11`、`versionName 0.2.0`，并已复制到 `android/WifiShare-debug.apk`。
+- 验证：`git diff --check` 通过；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 11`、`versionName 0.2.0`；`apksigner verify --verbose --print-certs android/WifiShare-debug.apk` 确认 v2 签名通过。
+- APK SHA-256：`32b4f7854c289ef5ed486bf52ad9a2d74789842942e0a950c1a8b9d00186756a`。

@@ -27,8 +27,8 @@ class MainActivity : Activity() {
     private lateinit var serverQuickButtonsView: LinearLayout
     private lateinit var settingsButton: ImageButton
     private lateinit var themeToggleButton: ImageButton
-    private lateinit var sendButton: Button
-    private lateinit var receiveButton: Button
+    private lateinit var sendButton: ImageButton
+    private lateinit var receiveButton: ImageButton
 
     private lateinit var settingsStore: SettingsStore
     private lateinit var themeMode: ThemeModeSetting
@@ -325,8 +325,8 @@ class MainActivity : Activity() {
         AppTheme.applyIconButton(settingsButton, palette)
         themeToggleButton.setImageResource(if (palette.isDark) R.drawable.ic_sun else R.drawable.ic_moon)
         AppTheme.applyIconButton(themeToggleButton, palette)
-        AppTheme.applyPrimaryButton(sendButton, palette)
-        AppTheme.applySecondaryButton(receiveButton, palette)
+        AppTheme.applyAccentIconButton(sendButton, palette)
+        AppTheme.applyIconButton(receiveButton, palette)
         AppTheme.applyText(findViewById(R.id.mainScroll), palette)
         AppTheme.applyPill(receiverStatusView, palette)
         AppTheme.applyPill(statusView, palette)

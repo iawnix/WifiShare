@@ -122,58 +122,43 @@
             android:layout_marginTop="16dp"
             android:background="@drawable/card_surface"
             android:elevation="1dp"
-            android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
             android:padding="16dp">
 
             <TextView
                 android:id="@+id/shareSummary"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:layout_weight="1"
                 android:lineSpacingExtra="3dp"
                 android:tag="muted"
                 android:text="@string/no_pending_share"
                 android:textColor="@color/lss_muted"
                 android:textSize="14sp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:orientation="horizontal">
+            <ImageButton
+                android:id="@+id/sendButton"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/icon_button_surface"
+                android:contentDescription="@string/send_now"
+                android:enabled="false"
+                android:padding="10dp"
+                android:scaleType="center"
+                android:src="@drawable/ic_upload" />
 
-                <Button
-                    android:id="@+id/sendButton"
-                    android:layout_width="0dp"
-                    android:layout_height="50dp"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_primary"
-                    android:drawableStart="@drawable/ic_upload"
-                    android:drawablePadding="8dp"
-                    android:enabled="false"
-                    android:gravity="center"
-                    android:text="@string/send_now"
-                    android:textAllCaps="false"
-                    android:textColor="@android:color/white"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/receiveButton"
-                    android:layout_width="0dp"
-                    android:layout_height="50dp"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:drawableStart="@drawable/ic_download"
-                    android:drawablePadding="8dp"
-                    android:gravity="center"
-                    android:text="@string/receive_now"
-                    android:textAllCaps="false"
-                    android:textColor="@android:color/white"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+            <ImageButton
+                android:id="@+id/receiveButton"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:background="@drawable/icon_button_surface"
+                android:contentDescription="@string/receive_now"
+                android:padding="10dp"
+                android:scaleType="center"
+                android:src="@drawable/ic_download" />
         </LinearLayout>
 
         <TextView

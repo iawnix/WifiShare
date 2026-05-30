@@ -32,6 +32,29 @@ class SettingsStore(context: Context) {
         saveAndActivate(config)
     }
 
+    fun saveProfile(config: TransferConfig, replaceProfileKey: String? = null): Boolean {
+        val normalized = config.normalized()
+        if (!normalized.isComplete()) {
+            return false
+        }
+
+        val key = normalized.profileKey()
+        val previousProfiles = loadAll()
+        val profiles = previousProfiles.filter {
+            it.profileKey() != key && it.profileKey() != replaceProfileKey
+        } + normalized
+        val activeKey = preferences.getString(KEY_ACTIVE_PROFILE, "") ?: ""
+        val nextActive = when {
+            activeKey == replaceProfileKey || activeKey == key -> key
+            activeKey.isNotBlank() && profiles.any { it.profileKey() == activeKey } -> activeKey
+            profiles.size == 1 -> key
+            else -> activeKey
+        }
+        writeProfiles(profiles, nextActive)
+        loadActive()?.let { writeLegacy(it) }
+        return true
+    }
+
     fun saveAndActivate(config: TransferConfig, replaceProfileKey: String? = null): Boolean {
         val normalized = config.normalized()
         if (!normalized.isComplete()) {
@@ -90,6 +113,16 @@ class SettingsStore(context: Context) {
     fun saveThemeMode(mode: ThemeModeSetting) {
         preferences.edit()
             .putString(KEY_THEME_MODE, mode.name)
+            .apply()
+    }
+
+    fun isWidgetReceiving(): Boolean {
+        return preferences.getBoolean(KEY_WIDGET_RECEIVING, false)
+    }
+
+    fun setWidgetReceiving(receiving: Boolean) {
+        preferences.edit()
+            .putBoolean(KEY_WIDGET_RECEIVING, receiving)
             .apply()
     }
 
@@ -174,5 +207,6 @@ class SettingsStore(context: Context) {
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_CERT_SHA256 = "cert_sha256"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_WIDGET_RECEIVING = "widget_receiving"
     }
 }

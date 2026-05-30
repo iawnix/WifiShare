@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.Toast
 
@@ -59,10 +60,16 @@ class WifiShareWidgetProvider : AppWidgetProvider() {
             val store = SettingsStore(context)
             val profiles = store.loadAll()
             val active = store.loadActive()
+            val receiving = store.isWidgetReceiving()
             val views = RemoteViews(context.packageName, R.layout.widget_wifishare)
 
             views.setTextViewText(R.id.widgetServerName, active?.serverName ?: context.getString(R.string.receiver_missing))
             views.setTextViewText(R.id.widgetServerUrl, active?.baseUrl ?: context.getString(R.string.receiver_url_empty))
+            views.setTextViewText(
+                R.id.widgetModeLabel,
+                if (receiving) context.getString(R.string.widget_receiving) else context.getString(R.string.widget_receive_idle),
+            )
+            views.setViewVisibility(R.id.widgetReceiveProgress, if (receiving) View.VISIBLE else View.GONE)
             views.setTextViewText(
                 R.id.widgetSwitchButton,
                 when {
@@ -79,7 +86,15 @@ class WifiShareWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(
                 R.id.widgetReceiveButton,
-                if (active != null) receiveIntent(context) else openSettingsIntent(context),
+                when {
+                    receiving -> openMainIntent(context)
+                    active != null -> receiveIntent(context)
+                    else -> openSettingsIntent(context)
+                },
+            )
+            views.setTextViewText(
+                R.id.widgetReceiveButton,
+                if (receiving) context.getString(R.string.widget_receiving) else context.getString(R.string.widget_receive),
             )
 
             manager.updateAppWidget(widgetId, views)

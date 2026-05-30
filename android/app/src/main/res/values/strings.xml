@@ -7,7 +7,7 @@
     <string name="settings">设置</string>
     <string name="toggle_theme">切换明暗主题</string>
     <string name="settings_title">服务端</string>
-    <string name="settings_subtitle">选择服务端可编辑详细信息；保存后会切换为当前传输目标。</string>
+    <string name="settings_subtitle">维护服务端配置；当前传输目标在首页切换。</string>
     <string name="settings_section_receiver">服务端凭据</string>
     <string name="settings_section_saved_servers">已保存服务端</string>
     <string name="settings_section_editor">编辑服务端</string>
@@ -25,6 +25,7 @@
     <string name="no_saved_servers">尚无已保存服务端。</string>
     <string name="active_server_status">当前使用：%1$s</string>
     <string name="selected_server_status">已选择：%1$s</string>
+    <string name="editing_server_status">正在编辑服务端：%1$s</string>
     <string name="use_selected_server">启用</string>
     <string name="delete_selected_server">删除</string>
     <string name="new_server">新增</string>
@@ -50,7 +51,7 @@
     <string name="no_phone_queue">Linux 端暂无队列文件。</string>
     <string name="invalid_config">服务端配置不完整。</string>
     <string name="invalid_pairing_link">配对链接无效或不完整。</string>
-    <string name="config_saved">已保存并切换到服务端：%1$s</string>
+    <string name="config_saved">已保存服务端：%1$s</string>
     <string name="pairing_saved">已配对并切换到服务端：%1$s</string>
     <string name="uploading">正在发送...</string>
     <string name="checking_queue">正在检查 Linux 队列...</string>
@@ -66,6 +67,8 @@
     <string name="widget_description">快速切换 WifiShare 服务端，并从 Linux 接收队列文件。</string>
     <string name="widget_switch_server">切换</string>
     <string name="widget_receive">接收</string>
+    <string name="widget_receiving">接收中</string>
+    <string name="widget_receive_idle">空闲</string>
     <string name="widget_open_settings">设置</string>
     <string name="widget_single_server">当前</string>
     <string name="widget_mode_label">LAN</string>

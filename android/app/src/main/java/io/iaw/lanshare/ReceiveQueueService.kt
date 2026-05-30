@@ -19,6 +19,8 @@ class ReceiveQueueService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        SettingsStore(this).setWidgetReceiving(true)
+        WifiShareWidgetProvider.updateAllWidgets(this)
         ensureNotificationChannel()
         startForeground(
             NOTIFICATION_ID,
@@ -32,6 +34,7 @@ class ReceiveQueueService : Service() {
         worker.execute {
             val message = receiveQueuedFiles()
             runOnMain {
+                SettingsStore(this).setWidgetReceiving(false)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 showResultNotification(message)
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show()
@@ -43,6 +46,8 @@ class ReceiveQueueService : Service() {
     }
 
     override fun onDestroy() {
+        SettingsStore(this).setWidgetReceiving(false)
+        WifiShareWidgetProvider.updateAllWidgets(this)
         worker.shutdownNow()
         super.onDestroy()
     }

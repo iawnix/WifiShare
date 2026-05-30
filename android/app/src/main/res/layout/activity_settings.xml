@@ -110,21 +110,9 @@
                 android:orientation="horizontal">
 
                 <ImageButton
-                    android:id="@+id/activateServerButton"
-                    android:layout_width="46dp"
-                    android:layout_height="46dp"
-                    android:layout_marginEnd="6dp"
-                    android:background="@drawable/icon_button_surface"
-                    android:contentDescription="@string/activate_server"
-                    android:padding="10dp"
-                    android:scaleType="center"
-                    android:src="@drawable/ic_check" />
-
-                <ImageButton
                     android:id="@+id/deleteServerButton"
                     android:layout_width="46dp"
                     android:layout_height="46dp"
-                    android:layout_marginStart="6dp"
                     android:layout_marginEnd="6dp"
                     android:background="@drawable/icon_button_surface"
                     android:contentDescription="@string/delete_server"
