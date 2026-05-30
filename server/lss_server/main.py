@@ -25,6 +25,11 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--upload-dir", type=Path, default=None)
     init_parser.add_argument("--phone-queue-dir", type=Path, default=None)
     init_parser.add_argument("--max-upload-mb", type=int, default=1024)
+    init_parser.add_argument(
+        "--no-write-pairing",
+        action="store_true",
+        help="print pairing data without writing pairing.json or pairing-uri.txt",
+    )
 
     serve_parser = subparsers.add_parser("serve", help="run the HTTPS receiver")
     serve_parser.add_argument("--config", type=Path, default=config_path_from_env(Path("./state/config.json")))
@@ -78,15 +83,20 @@ def init_command(args: argparse.Namespace) -> int:
     fingerprint = certificate_sha256(cert_path)
     pairing_payload = build_pairing_payload(config, fingerprint)
     pairing_uri = build_pairing_uri(pairing_payload)
-    pairing_path.write_text(
-        json.dumps(pairing_payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    pairing_uri_path.write_text(pairing_uri + "\n", encoding="utf-8")
+    write_pairing_files = not args.no_write_pairing
+    if write_pairing_files:
+        pairing_path.write_text(
+            json.dumps(pairing_payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        pairing_uri_path.write_text(pairing_uri + "\n", encoding="utf-8")
 
     print(f"Config written to: {config_path}")
-    print(f"Pairing file:      {pairing_path}")
-    print(f"Pairing URI file:  {pairing_uri_path}")
+    if write_pairing_files:
+        print(f"Pairing file:      {pairing_path}")
+        print(f"Pairing URI file:  {pairing_uri_path}")
+    else:
+        print("Pairing files:     not written")
     print(f"Base URL:          {config.base_url}")
     print(f"Auth token:        {config.auth_token}")
     print(f"Cert SHA-256:      {fingerprint}")

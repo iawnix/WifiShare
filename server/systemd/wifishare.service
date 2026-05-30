@@ -8,7 +8,7 @@ Type=simple
 Environment=PYTHONUNBUFFERED=1
 Environment=WIFISHARE_HOME=%h/WifiShare
 EnvironmentFile=-%h/.config/wifishare/server.env
-ExecStart=/bin/sh -lc 'cd "$WIFISHARE_HOME/server" && exec ./serve'
+ExecStart=/bin/sh -lc 'cd "$WIFISHARE_HOME/server" && exec ./serve --config "${LAN_SECURE_SHARE_CONFIG:-$WIFISHARE_HOME/server/state/config.json}"'
 Restart=on-failure
 RestartSec=3
 

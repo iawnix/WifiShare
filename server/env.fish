@@ -13,7 +13,7 @@ if not set -q LAN_SECURE_SHARE_CONFIG
 end
 
 if not set -q LAN_SECURE_SHARE_DOWNLOAD_DIR
-    set -gx LAN_SECURE_SHARE_DOWNLOAD_DIR "$LAN_SECURE_SHARE_HOME/state/uploads"
+    set -gx LAN_SECURE_SHARE_DOWNLOAD_DIR "$HOME/Downloads/WifiShare"
 end
 
 if not set -q LAN_SECURE_SHARE_PHONE_QUEUE_DIR

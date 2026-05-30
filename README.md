@@ -47,108 +47,100 @@ WifiShare 是一个局域网加密文件传输原型，用于 Android 手机和 
 
    选择手机能访问到的地址，不要用 `127.0.0.1`。
 
-4. 初始化新电脑服务端：
+4. 一键安装服务端：
 
    ```bash
-   LAN_IP=192.168.1.50
-   python3 -m lss_server init \
-     --state-dir ./state \
-     --server-name WifiShare \
-     --advertise-host "$LAN_IP"
+   ./install_wifishare --ip 192.168.1.50 --shell zsh
    ```
+
+   可选参数：
+
+   ```bash
+   ./install_wifishare --ip 192.168.1.50 \
+     --enable_systemd \
+     --shell fish \
+     --relay_dir ~/Downloads/WifiShare
+   ```
+
+   `--ip` 必须是手机能访问到的 Linux 局域网 IP。`--relay_dir` 默认是
+   `~/Downloads/WifiShare`，用于保存手机发到电脑的文件。安装脚本会初始化
+   `server/state/config.json`、证书和 token，并只在终端打印本次配对 URI，不把
+   手机配对 URI/token 另存成本地 `pairing-uri.txt`。
 
 5. 启动服务：
 
-   ```bash
-   ./serve
-   ```
-
-   或启用当前 shell 的短命令：
+   如果没有启用 systemd：
 
    ```bash
-   . ./env.sh
+   . ~/.config/wifishare/env.sh
    serve
    ```
 
-   如果使用 fish shell：
+   如果安装时用了 `--enable_systemd`：
 
-   ```fish
-   source ./env.fish
-   serve
+   ```bash
+   systemctl --user status wifishare.service
+   journalctl --user -u wifishare.service -f
    ```
 
 6. 重新配对手机：
 
-   ```bash
-   python3 -m lss_server pairing --config ./state/config.json --write
-   cat state/pairing-uri.txt
-   ```
-
-   把 `pairing-uri.txt` 做成二维码，或把链接发到手机打开。手机端会保存新电脑的 `Base URL`、`Auth token` 和证书指纹，并自动切换到这个新服务端；旧服务端配置会保留在手机端列表里。
+   安装脚本终端输出里有 `Pairing URI:`。把该链接发到手机打开，或临时做成二维码。
+   手机端会保存新电脑的 `Base URL`、`Auth token` 和证书指纹，并自动切换到这个新服务端；旧服务端配置会保留在手机端列表里。
 
 7. 使用：
 
    ```bash
-   ./phone /path/to/file.pdf
+   phone /path/to/file.pdf
    ```
 
-   然后在手机 App 首页点击“接收队列文件”。手机发电脑时，先在首页下拉框选择目标服务端，再在 Android 分享菜单选择 `WifiShare`。
+   然后在手机 App 首页点击“接收”。手机发电脑时，在 Android 分享菜单选择 `WifiShare`，再点“发送”。
 
-可选：设置电脑接收目录。
+修复或重建本机配置：
 
 ```bash
-export LAN_SECURE_SHARE_DOWNLOAD_DIR="$HOME/Downloads/WifiShare"
+install_wifishare repair --ip 192.168.1.50 --shell bash
 ```
 
 ## 本机快速使用
 
-1. 启动 Linux 服务端：
+1. 安装 Linux 服务端：
 
    ```bash
-   cd WifiShare/server
-   python -m lss_server serve --config ./state/config.json
-   ```
-
-   如果还没有初始化过，先运行：
-
-   ```bash
-   LAN_IP=192.168.1.50
-   python -m lss_server init \
-     --state-dir ./state \
-     --server-name WifiShare \
-     --advertise-host "$LAN_IP"
+   cd WifiShare
+   ./install_wifishare --ip 192.168.1.50 --shell bash
    ```
 
    不要用 `127.0.0.1`，要填手机能访问到的 Linux 局域网 IP。
 
-2. 安装 Android APK：
+2. 启动 Linux 服务端：
+
+   ```bash
+   . ~/.config/wifishare/env.sh
+   serve
+   ```
+
+3. 安装 Android APK：
 
    ```text
    android/WifiShare-debug.apk
    ```
 
-3. 配对手机：
+4. 配对手机：
+
+   使用安装脚本打印的 `Pairing URI:`。也可以在 App 设置页手动填写 `Base URL`、`Auth token`、`Cert SHA-256`。手机端支持保存多个服务端，首页和设置页都可以切换当前连接的服务端。
+
+5. 手机发送到电脑：
+
+   在手机文件管理器或相册里点击系统分享，选择 `WifiShare`，再点“发送”。
+
+6. 电脑发送到手机：
 
    ```bash
-   cd WifiShare/server
-   python -m lss_server pairing --config ./state/config.json --write
-   cat state/pairing-uri.txt
+   phone /path/to/file.pdf
    ```
 
-   把 `state/pairing-uri.txt` 做成二维码或发送到手机打开。也可以在 App 的“设置”页手动填写 `Base URL`、`Auth token`、`Cert SHA-256`。手机端支持保存多个服务端，首页下拉框和设置页都可以切换当前连接的服务端。
-
-4. 手机发送到电脑：
-
-   在手机文件管理器或相册里点击系统分享，选择 `WifiShare`，再点“发送选中文件”。
-
-5. 电脑发送到手机：
-
-   ```bash
-   cd WifiShare/server
-   ./phone /path/to/file.pdf
-   ```
-
-   然后在手机 App 首页点击“接收队列文件”。
+   然后在手机 App 首页点击“接收”。
 
 ## 环境变量
 
@@ -181,7 +173,19 @@ phone /path/to/file.pdf
 server/systemd/wifishare.service
 ```
 
-安装前请先检查 `server/systemd/server.env.example` 里的路径。服务安装属于仓库外操作，默认不自动执行。如果仓库不在默认的 `~/WifiShare`，在 `~/.config/wifishare/server.env` 中设置 `WIFISHARE_HOME`。
+默认安装不启用 systemd，只打印手动启动说明。需要用户级 systemd 时：
+
+```bash
+install_wifishare repair --enable_systemd
+```
+
+脚本会安装 `~/.config/systemd/user/wifishare.service`，并写入
+`~/.config/wifishare/server.env`。查看状态和日志：
+
+```bash
+systemctl --user status wifishare.service
+journalctl --user -u wifishare.service -f
+```
 
 ## 构建
 
@@ -250,3 +254,15 @@ gradle assembleDebug
 - Linux 到手机的队列增加 `pending -> inflight -> ack` 领取流程；未 ack 的 inflight 文件有 lease，到期后可重新回到 pending，避免 App 和小组件并发拉取时重复接收同一个文件。
 - APK 版本更新为 `versionCode 7`、`versionName 0.1.6`，并已复制到 `android/WifiShare-debug.apk`。
 - 验证：`python3 -m py_compile server/lss_server/*.py` 通过；`python3 -m unittest discover -s tests -v` 通过 8 个服务端测试；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 7`、`versionName 0.1.6`、通知和前台服务权限；`aapt dump xmltree` 确认 `allowBackup=false`、`ReceiveQueueService` 和 `UploadService` 均为 `foregroundServiceType=dataSync`；`apksigner verify --verbose android/WifiShare-debug.apk` 确认 v2 签名通过。当前环境未做 ADB 实机安装验证。
+
+## 2026-05-30 安装脚本与极简界面
+
+- 新增根目录 `install_wifishare` 和服务端 `server/install_wifishare`，支持 `--ip`、`--enable_systemd` / `--enable_systemed`、`--shell bash|zsh|fish`、`--relay_dir`、`repair` 和 `-h`。
+- 安装脚本会初始化 `server/state/config.json`、证书、token、上传目录和 phone 队列目录；配对信息只在安装/repair 终端输出，不写入本地 `pairing.json` 或 `pairing-uri.txt`。
+- 默认上传目录改为 `~/Downloads/WifiShare`；shell 环境写入 `~/.config/wifishare/env.sh` 或 `env.fish`，并在对应 shell rc 中追加 source 行。
+- systemd 默认不启用；启用时安装用户级 `wifishare.service`，写入 `~/.config/wifishare/server.env`，并打印 `systemctl --user` / `journalctl --user` 管理命令。
+- Android 主界面改为更紧凑的工具式布局：设置、发送、接收、启用、新增、删除、返回等操作增加图标，发送/接收按钮文案收短，首页减少说明文本。
+- APK 版本更新为 `versionCode 8`、`versionName 0.1.7`，并已复制到 `android/WifiShare-debug.apk`。
+- 验证：`./install_wifishare -h` 通过；隔离 HOME 的安装脚本测试确认 `~/Relay` 展开正确且未生成 `pairing.json` / `pairing-uri.txt`；`python3 -m py_compile server/lss_server/*.py server/tests/test_server.py` 通过；`python3 -m unittest discover -s tests -v` 通过 9 个服务端测试；`gradle assembleDebug` 通过；`aapt dump badging android/WifiShare-debug.apk` 确认 `versionCode 8`、`versionName 0.1.7`、通知和前台服务权限；`aapt dump xmltree` 确认 `allowBackup=false`、widget、`ReceiveQueueService`、`UploadService` 和 `foregroundServiceType=dataSync`；`apksigner verify --verbose --print-certs android/WifiShare-debug.apk` 确认 v2 签名通过。
+- APK SHA-256：`b048f9ac2cb9ff819da668aef554a0d9b792081ff0c4e0ea37d7ad13e797528f`。
+- 风险：当前环境未做 ADB 实机安装验证。

@@ -13,7 +13,36 @@
 - 请求必须携带 Bearer token。
 - 上传文件带 `X-Content-SHA256`，服务端保存前会重新计算并校验。
 
-## 初始化
+## 推荐安装
+
+从仓库根目录执行：
+
+```bash
+./install_wifishare --ip 192.168.1.50 --shell bash
+```
+
+常用完整形式：
+
+```bash
+./install_wifishare \
+  --ip 192.168.1.50 \
+  --enable_systemd \
+  --shell fish \
+  --relay_dir ~/Downloads/WifiShare
+```
+
+- `--ip`：手机能访问到的 Linux 局域网 IP。
+- `--enable_systemd`：安装并启动用户级 `wifishare.service`；默认不启用，只打印手动启动说明。
+- `--enable_systemed`：兼容拼写别名，等同于 `--enable_systemd`。
+- `--shell`：写入 bash、zsh 或 fish 的环境加载入口。
+- `--relay_dir`：手机上传到电脑的保存目录，默认 `~/Downloads/WifiShare`。
+- `repair`：重建 env、目录、配置和可选 systemd 单元。
+- `-h`：打印安装说明。
+
+安装脚本会生成配对信息并只在终端打印；不会把手机配对 URI/token 写入本地
+`pairing.json` 或 `pairing-uri.txt`。
+
+## 手动初始化
 
 ```bash
 LAN_IP=192.168.1.50
@@ -41,7 +70,7 @@ serve
 
 终端保持运行，手机上传或拉取文件时会在这里打印请求日志。
 
-## 配对
+## 手动配对
 
 刷新配对信息：
 

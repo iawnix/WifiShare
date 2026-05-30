@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import contextlib
+import io
 import json
 from pathlib import Path
 import ssl
@@ -15,7 +17,7 @@ from lss_server.certs import generate_self_signed_certificate
 from lss_server.config import ServerConfig, load_config
 from lss_server.files import normalize_sha256, sanitize_filename
 from lss_server.httpd import create_server
-from lss_server.main import phone_main
+from lss_server.main import main, phone_main
 from lss_server.outbox import next_phone_transfer, queue_phone_file
 from lss_server.pairing import build_pairing_payload, build_pairing_uri
 
@@ -152,6 +154,39 @@ class HelperTests(unittest.TestCase):
 
             self.assertEqual(Path(config.upload_dir), download_dir)
             self.assertEqual(Path(config.phone_queue_dir), queue_dir)
+
+    def test_init_can_print_pairing_without_writing_pairing_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            state_dir = Path(tmp_dir_name) / "state"
+            upload_dir = Path(tmp_dir_name) / "uploads"
+            queue_dir = Path(tmp_dir_name) / "phone-outbox"
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                result = main(
+                    [
+                        "init",
+                        "--state-dir",
+                        str(state_dir),
+                        "--server-name",
+                        "test-server",
+                        "--advertise-host",
+                        "127.0.0.1",
+                        "--upload-dir",
+                        str(upload_dir),
+                        "--phone-queue-dir",
+                        str(queue_dir),
+                        "--no-write-pairing",
+                    ]
+                )
+
+            self.assertEqual(result, 0)
+            self.assertIn("Pairing files:     not written", output.getvalue())
+            self.assertIn("Pairing URI:", output.getvalue())
+            self.assertTrue((state_dir / "config.json").exists())
+            self.assertTrue((state_dir / "server.crt").exists())
+            self.assertFalse((state_dir / "pairing.json").exists())
+            self.assertFalse((state_dir / "pairing-uri.txt").exists())
 
 
 class UploadServerTests(unittest.TestCase):

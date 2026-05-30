@@ -1,0 +1,285 @@
+#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+REPO_DIR=$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)
+STATE_DIR="${SCRIPT_DIR}/state"
+DEFAULT_RELAY_DIR="${HOME}/Downloads/WifiShare"
+USER_CONFIG_DIR="${HOME}/.config/wifishare"
+
+IP=""
+ENABLE_SYSTEMD=0
+TARGET_SHELL=""
+RELAY_DIR="$DEFAULT_RELAY_DIR"
+ACTION="install"
+
+installed_env_file() {
+  case "$1" in
+    fish) printf '%s\n' "${USER_CONFIG_DIR}/env.fish" ;;
+    *) printf '%s\n' "${USER_CONFIG_DIR}/env.sh" ;;
+  esac
+}
+
+usage() {
+  cat <<'EOF'
+WifiShare installer
+
+Usage:
+  install_wifishare --ip <LAN_IP> [--enable_systemd] [--shell bash|zsh|fish] [--relay_dir <DIR>]
+  install_wifishare repair [--ip <LAN_IP>] [--enable_systemd] [--shell bash|zsh|fish] [--relay_dir <DIR>]
+
+Options:
+  --ip <LAN_IP>         Linux LAN IP visible to the phone. Required for first install.
+  --enable_systemd      Install and start the user service wifishare.service.
+  --enable_systemed     Compatibility alias for --enable_systemd.
+  --shell <shell>       Write shell env hook for bash, zsh, or fish. Defaults to current shell.
+  --relay_dir <DIR>     Directory for phone-to-Linux uploads. Default: ~/Downloads/WifiShare.
+  repair                Rebuild env files, directories, config, and optional systemd unit.
+  -h, --help            Print this help.
+
+Pairing data is printed once during install/repair and is not written to local
+pairing files by this installer.
+EOF
+}
+
+die() {
+  printf 'error: %s\n' "$1" >&2
+  exit 2
+}
+
+expand_path() {
+  case "$1" in
+    "~") printf '%s\n' "$HOME" ;;
+    "~/"*) printf '%s/%s\n' "$HOME" "${1#\~/}" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+absolute_path() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    *) printf '%s/%s\n' "$PWD" "$1" ;;
+  esac
+}
+
+detect_shell() {
+  if [ -n "${TARGET_SHELL}" ]; then
+    printf '%s\n' "$TARGET_SHELL"
+    return
+  fi
+  case "${SHELL:-}" in
+    */fish) printf 'fish\n' ;;
+    */zsh) printf 'zsh\n' ;;
+    *) printf 'bash\n' ;;
+  esac
+}
+
+validate_shell() {
+  case "$1" in
+    bash|zsh|fish) ;;
+    *) die "--shell must be bash, zsh, or fish" ;;
+  esac
+}
+
+shell_rc_file() {
+  case "$1" in
+    bash) printf '%s\n' "${HOME}/.bashrc" ;;
+    zsh) printf '%s\n' "${HOME}/.zshrc" ;;
+    fish) printf '%s\n' "${HOME}/.config/fish/conf.d/wifishare.fish" ;;
+  esac
+}
+
+append_once() {
+  target_file="$1"
+  marker="$2"
+  line="$3"
+  mkdir -p "$(dirname "$target_file")"
+  touch "$target_file"
+  if grep -F "$line" "$target_file" >/dev/null 2>&1; then
+    return
+  fi
+  {
+    printf '\n'
+    printf '%s\n' "$marker"
+    printf '%s\n' "$line"
+  } >> "$target_file"
+}
+
+write_env_files() {
+  mkdir -p "$USER_CONFIG_DIR"
+  cat > "${USER_CONFIG_DIR}/env.sh" <<EOF
+# Source this file to expose WifiShare commands in the current shell:
+# . ${USER_CONFIG_DIR}/env.sh
+
+export LAN_SECURE_SHARE_HOME="${SCRIPT_DIR}"
+export LAN_SECURE_SHARE_CONFIG="${STATE_DIR}/config.json"
+export LAN_SECURE_SHARE_DOWNLOAD_DIR="${RELAY_DIR}"
+export LAN_SECURE_SHARE_PHONE_QUEUE_DIR="${STATE_DIR}/phone-outbox"
+
+case ":\${PATH}:" in
+  *":${SCRIPT_DIR}:"*) ;;
+  *) export PATH="${SCRIPT_DIR}:\${PATH}" ;;
+esac
+EOF
+
+  cat > "${USER_CONFIG_DIR}/env.fish" <<EOF
+# Source this file to expose WifiShare commands in the current fish shell:
+# source ${USER_CONFIG_DIR}/env.fish
+
+set -gx LAN_SECURE_SHARE_HOME "${SCRIPT_DIR}"
+set -gx LAN_SECURE_SHARE_CONFIG "${STATE_DIR}/config.json"
+set -gx LAN_SECURE_SHARE_DOWNLOAD_DIR "${RELAY_DIR}"
+set -gx LAN_SECURE_SHARE_PHONE_QUEUE_DIR "${STATE_DIR}/phone-outbox"
+
+if not contains -- "${SCRIPT_DIR}" \$PATH
+    set -gx PATH "${SCRIPT_DIR}" \$PATH
+end
+EOF
+}
+
+write_systemd_env() {
+  mkdir -p "$USER_CONFIG_DIR"
+  cat > "${USER_CONFIG_DIR}/server.env" <<EOF
+WIFISHARE_HOME=${REPO_DIR}
+LAN_SECURE_SHARE_CONFIG=${STATE_DIR}/config.json
+LAN_SECURE_SHARE_DOWNLOAD_DIR=${RELAY_DIR}
+LAN_SECURE_SHARE_PHONE_QUEUE_DIR=${STATE_DIR}/phone-outbox
+EOF
+}
+
+remove_pairing_files() {
+  rm -f "${STATE_DIR}/pairing.json" "${STATE_DIR}/pairing-uri.txt"
+}
+
+install_systemd_service() {
+  command -v systemctl >/dev/null 2>&1 || die "systemctl not found"
+  mkdir -p "${HOME}/.config/systemd/user"
+  cp "${SCRIPT_DIR}/systemd/wifishare.service" "${HOME}/.config/systemd/user/wifishare.service"
+  write_systemd_env
+  systemctl --user daemon-reload
+  systemctl --user enable --now wifishare.service
+}
+
+print_systemd_hint() {
+  if [ "$ENABLE_SYSTEMD" -eq 1 ]; then
+    cat <<EOF
+
+systemd user service enabled:
+  systemctl --user status wifishare.service
+  journalctl --user -u wifishare.service -f
+  systemctl --user restart wifishare.service
+EOF
+  else
+    cat <<EOF
+
+Service start:
+  . "${USER_CONFIG_DIR}/env.sh"
+  serve
+
+Optional systemd management:
+  install_wifishare repair --enable_systemd
+  systemctl --user status wifishare.service
+  journalctl --user -u wifishare.service -f
+EOF
+  fi
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    repair)
+      ACTION="repair"
+      shift
+      ;;
+    --ip)
+      [ "$#" -ge 2 ] || die "--ip requires a value"
+      IP="$2"
+      shift 2
+      ;;
+    --ip=*)
+      IP="${1#--ip=}"
+      shift
+      ;;
+    --enable_systemd|--enable-systemd|--enable_systemed)
+      ENABLE_SYSTEMD=1
+      shift
+      ;;
+    --shell)
+      [ "$#" -ge 2 ] || die "--shell requires a value"
+      TARGET_SHELL="$2"
+      shift 2
+      ;;
+    --shell=*)
+      TARGET_SHELL="${1#--shell=}"
+      shift
+      ;;
+    --relay_dir|--relay-dir)
+      [ "$#" -ge 2 ] || die "--relay_dir requires a value"
+      RELAY_DIR=$(expand_path "$2")
+      shift 2
+      ;;
+    --relay_dir=*|--relay-dir=*)
+      RELAY_DIR=$(expand_path "${1#*=}")
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+done
+
+TARGET_SHELL=$(detect_shell)
+validate_shell "$TARGET_SHELL"
+RELAY_DIR=$(absolute_path "$RELAY_DIR")
+
+if [ -z "$IP" ] && [ ! -f "${STATE_DIR}/config.json" ]; then
+  die "--ip is required for first install"
+fi
+
+mkdir -p "$STATE_DIR" "$RELAY_DIR" "${STATE_DIR}/phone-outbox"
+write_env_files
+
+export PYTHONPATH="${SCRIPT_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
+export LAN_SECURE_SHARE_DOWNLOAD_DIR="$RELAY_DIR"
+export LAN_SECURE_SHARE_PHONE_QUEUE_DIR="${STATE_DIR}/phone-outbox"
+
+if [ -n "$IP" ]; then
+  python3 -m lss_server init \
+    --state-dir "$STATE_DIR" \
+    --server-name WifiShare \
+    --advertise-host "$IP" \
+    --upload-dir "$RELAY_DIR" \
+    --phone-queue-dir "${STATE_DIR}/phone-outbox" \
+    --no-write-pairing
+else
+  python3 -m lss_server pairing --config "${STATE_DIR}/config.json"
+fi
+remove_pairing_files
+
+rc_file=$(shell_rc_file "$TARGET_SHELL")
+env_file=$(installed_env_file "$TARGET_SHELL")
+if [ "$TARGET_SHELL" = "fish" ]; then
+  append_once "$rc_file" "# WifiShare environment" "source ${env_file}"
+else
+  append_once "$rc_file" "# WifiShare environment" ". \"${env_file}\""
+fi
+
+if [ "$ENABLE_SYSTEMD" -eq 1 ]; then
+  install_systemd_service
+else
+  write_systemd_env
+fi
+
+cat <<EOF
+
+WifiShare ${ACTION} complete:
+  server:    ${SCRIPT_DIR}
+  config:    ${STATE_DIR}/config.json
+  relay dir: ${RELAY_DIR}
+  env:       ${env_file}
+  shell:     ${TARGET_SHELL} (${rc_file})
+EOF
+print_systemd_hint

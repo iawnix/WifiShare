@@ -2,14 +2,14 @@
 <resources>
     <color name="lss_ink">#1D1D1F</color>
     <color name="lss_muted">#6E6E73</color>
-    <color name="lss_paper">#F3EFE6</color>
-    <color name="lss_card">#FFFCF6</color>
-    <color name="lss_line">#D8D0C4</color>
+    <color name="lss_paper">#F6F8FA</color>
+    <color name="lss_card">#FFFFFF</color>
+    <color name="lss_line">#D7DEE8</color>
     <color name="lss_teal">#007AFF</color>
     <color name="lss_teal_dark">#0057B8</color>
     <color name="lss_amber">#FF9F0A</color>
     <color name="lss_amber_dark">#9A5B00</color>
-    <color name="lss_mist">#E6EFEA</color>
+    <color name="lss_mist">#EAF4FF</color>
     <color name="lss_graphite">#2C2C2E</color>
     <color name="lss_widget_shadow">#33000000</color>
     <color name="lss_widget_ink">#F5F5F7</color>

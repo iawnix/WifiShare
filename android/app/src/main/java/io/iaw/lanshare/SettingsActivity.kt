@@ -7,6 +7,7 @@ import android.text.TextUtils
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -24,7 +25,7 @@ class SettingsActivity : Activity() {
     private lateinit var deleteServerButton: Button
     private lateinit var newServerButton: Button
     private lateinit var saveButton: Button
-    private lateinit var backButton: Button
+    private lateinit var backButton: ImageButton
 
     private lateinit var settingsStore: SettingsStore
     private var savedProfiles: List<TransferConfig> = emptyList()

@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -24,7 +25,7 @@ class MainActivity : Activity() {
     private lateinit var shareSummaryView: TextView
     private lateinit var statusView: TextView
     private lateinit var serverQuickButtonsView: LinearLayout
-    private lateinit var settingsButton: Button
+    private lateinit var settingsButton: ImageButton
     private lateinit var sendButton: Button
     private lateinit var receiveButton: Button
 
