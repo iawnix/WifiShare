@@ -1,154 +1,134 @@
 package io.iaw.lanshare
 
 import android.content.Context
-import org.json.JSONArray
-import org.json.JSONObject
 
 class SettingsStore(context: Context) {
-    private val preferences = context.getSharedPreferences("lan_secure_share", Context.MODE_PRIVATE)
+    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val secureCipher = SecureSettingsCipher()
 
-    fun load(): TransferConfig? {
-        return loadActive()
+    fun load(): TransferConfig? = loadActive()
+
+    fun loadActive(): TransferConfig? = withStoreLock {
+        val profiles = loadAll()
+        ServerProfilePolicy.resolveActive(
+            profiles = profiles,
+            activeProfileId = preferences.getString(KEY_ACTIVE_PROFILE_ID, null),
+            legacyActiveKey = preferences.getString(KEY_ACTIVE_PROFILE, null),
+        )
     }
 
-    fun loadActive(): TransferConfig? {
-        val profiles = loadAll()
-        if (profiles.isEmpty()) {
+    fun loadAll(): List<TransferConfig> = withStoreLock {
+        val encryptedProfiles = preferences.getString(KEY_PROFILES_ENCRYPTED, null)
+        val legacyProfiles = preferences.getString(KEY_PROFILES_JSON, null)
+        val storedProfiles = if (encryptedProfiles != null) {
+            runCatching { secureCipher.decrypt(encryptedProfiles) }.getOrNull()
+        } else {
+            legacyProfiles
+        }
+        val decoded = ServerProfileJson.decode(storedProfiles)
+        if (decoded.profiles.isNotEmpty()) {
+            val active = ServerProfilePolicy.resolveActive(
+                profiles = decoded.profiles,
+                activeProfileId = preferences.getString(KEY_ACTIVE_PROFILE_ID, null),
+                legacyActiveKey = preferences.getString(KEY_ACTIVE_PROFILE, null),
+            )
+            val activeMetadataNeedsMigration = ServerProfilePolicy.activeMetadataNeedsMigration(
+                active = active,
+                activeProfileId = preferences.getString(KEY_ACTIVE_PROFILE_ID, null),
+                hasLegacyActiveKey = preferences.contains(KEY_ACTIVE_PROFILE),
+            )
+            if (decoded.needsMigration || activeMetadataNeedsMigration || encryptedProfiles == null) {
+                writeProfiles(decoded.profiles, active)
+            }
+            return@withStoreLock decoded.profiles
+        }
+
+        val legacyConfig = loadLegacy() ?: return@withStoreLock emptyList()
+        val legacy = legacyConfig.copy(
+            id = ServerProfilePolicy.migratedId(legacyConfig.profileKey()),
+        )
+        writeProfiles(listOf(legacy), legacy)
+        listOf(legacy)
+    }
+
+    fun findById(profileId: String?): TransferConfig? {
+        if (profileId.isNullOrBlank()) {
             return null
         }
-        val activeKey = preferences.getString(KEY_ACTIVE_PROFILE, "") ?: ""
-        return profiles.firstOrNull { it.profileKey() == activeKey } ?: profiles.first()
-    }
-
-    fun loadAll(): List<TransferConfig> {
-        val profiles = parseProfiles(preferences.getString(KEY_PROFILES_JSON, null))
-        if (profiles.isNotEmpty()) {
-            return profiles
-        }
-        return loadLegacy()?.let { listOf(it) } ?: emptyList()
+        return loadAll().firstOrNull { it.id == profileId }
     }
 
     fun save(config: TransferConfig) {
         saveAndActivate(config)
     }
 
-    fun saveProfile(config: TransferConfig, replaceProfileKey: String? = null): Boolean {
-        val normalized = config.normalized()
-        if (!normalized.isComplete()) {
-            return false
-        }
-
-        val key = normalized.profileKey()
-        val previousProfiles = loadAll()
-        val profiles = previousProfiles.filter {
-            it.profileKey() != key && it.profileKey() != replaceProfileKey
-        } + normalized
-        val activeKey = preferences.getString(KEY_ACTIVE_PROFILE, "") ?: ""
-        val nextActive = when {
-            activeKey == replaceProfileKey || activeKey == key -> key
-            activeKey.isNotBlank() && profiles.any { it.profileKey() == activeKey } -> activeKey
-            profiles.size == 1 -> key
-            else -> activeKey
-        }
-        writeProfiles(profiles, nextActive)
-        loadActive()?.let { writeLegacy(it) }
-        return true
-    }
-
-    fun saveAndActivate(config: TransferConfig, replaceProfileKey: String? = null): Boolean {
-        val normalized = config.normalized()
-        if (!normalized.isComplete()) {
-            return false
-        }
-
-        val key = normalized.profileKey()
-        val profiles = loadAll().filter {
-            it.profileKey() != key && it.profileKey() != replaceProfileKey
-        } + normalized
-        writeProfiles(profiles, key)
-        writeLegacy(normalized)
-        return true
-    }
-
-    fun setActive(config: TransferConfig): Boolean {
-        return setActive(config.profileKey())
-    }
-
-    fun setActive(profileKey: String): Boolean {
-        val target = loadAll().firstOrNull { it.profileKey() == profileKey } ?: return false
-        preferences.edit()
-            .putString(KEY_ACTIVE_PROFILE, target.profileKey())
-            .apply()
-        writeLegacy(target)
-        return true
-    }
-
-    fun delete(profileKey: String): Boolean {
+    fun saveProfile(config: TransferConfig, replaceProfileId: String? = null): Boolean = withStoreLock {
         val currentProfiles = loadAll()
-        val removed = currentProfiles.any { it.profileKey() == profileKey }
-        if (!removed) {
-            return false
+        val previousActive = resolveActiveWithoutLoading(currentProfiles)
+        val update = ServerProfilePolicy.upsert(currentProfiles, config, replaceProfileId)
+            ?: return@withStoreLock false
+        val replacedActive = previousActive?.id == replaceProfileId ||
+            previousActive?.profileKey() == update.saved.profileKey()
+        val nextActive = when {
+            replacedActive -> update.saved
+            previousActive != null && update.profiles.any { it.id == previousActive.id } -> previousActive
+            update.profiles.size == 1 -> update.saved
+            else -> update.profiles.firstOrNull()
         }
+        writeProfiles(update.profiles, nextActive)
+        true
+    }
 
-        val remaining = currentProfiles.filter { it.profileKey() != profileKey }
-        val activeKey = preferences.getString(KEY_ACTIVE_PROFILE, "") ?: ""
-        val nextActive = if (remaining.any { it.profileKey() == activeKey }) {
-            activeKey
-        } else {
-            remaining.firstOrNull()?.profileKey()
-        }
-        writeProfiles(remaining, nextActive.orEmpty())
-        remaining.firstOrNull { it.profileKey() == nextActive }?.let { writeLegacy(it) }
-        if (remaining.isEmpty()) {
+    fun saveAndActivate(config: TransferConfig, replaceProfileId: String? = null): Boolean = withStoreLock {
+        val update = ServerProfilePolicy.upsert(loadAll(), config, replaceProfileId)
+            ?: return@withStoreLock false
+        writeProfiles(update.profiles, update.saved)
+        true
+    }
+
+    fun setActive(config: TransferConfig): Boolean = setActive(config.id.ifBlank { config.profileKey() })
+
+    fun setActive(profileIdentifier: String): Boolean = withStoreLock {
+        val target = loadAll().firstOrNull {
+            it.id == profileIdentifier || it.profileKey() == profileIdentifier
+        } ?: return@withStoreLock false
+        writeActiveMetadata(target)
+        true
+    }
+
+    fun delete(profileIdentifier: String): Boolean = withStoreLock {
+        val currentProfiles = loadAll()
+        val target = currentProfiles.firstOrNull {
+            it.id == profileIdentifier || it.profileKey() == profileIdentifier
+        } ?: return@withStoreLock false
+        val previousActive = resolveActiveWithoutLoading(currentProfiles)
+        val remaining = currentProfiles.filter { it.id != target.id }
+        val nextActive = previousActive
+            ?.takeIf { active -> active.id != target.id && remaining.any { it.id == active.id } }
+            ?: remaining.firstOrNull()
+        writeProfiles(remaining, nextActive)
+        if (nextActive == null) {
             clearLegacy()
         }
-        return true
+        true
     }
 
     fun loadThemeMode(): ThemeModeSetting {
-        val raw = preferences.getString(KEY_THEME_MODE, ThemeModeSetting.LIGHT.name) ?: ThemeModeSetting.LIGHT.name
-        return runCatching { ThemeModeSetting.valueOf(raw) }.getOrDefault(ThemeModeSetting.LIGHT)
+        val raw = preferences.getString(KEY_THEME_MODE, ThemeModeSetting.SYSTEM.name)
+            ?: ThemeModeSetting.SYSTEM.name
+        return runCatching { ThemeModeSetting.valueOf(raw) }.getOrDefault(ThemeModeSetting.SYSTEM)
     }
 
     fun saveThemeMode(mode: ThemeModeSetting) {
-        preferences.edit()
-            .putString(KEY_THEME_MODE, mode.name)
-            .apply()
+        preferences.edit().putString(KEY_THEME_MODE, mode.name).apply()
     }
 
-    fun isWidgetReceiving(): Boolean {
-        return preferences.getBoolean(KEY_WIDGET_RECEIVING, false)
-    }
-
-    fun setWidgetReceiving(receiving: Boolean) {
-        preferences.edit()
-            .putBoolean(KEY_WIDGET_RECEIVING, receiving)
-            .apply()
-    }
-
-    private fun parseProfiles(raw: String?): List<TransferConfig> {
-        if (raw.isNullOrBlank()) {
-            return emptyList()
-        }
-        return try {
-            val array = JSONArray(raw)
-            buildList {
-                for (index in 0 until array.length()) {
-                    val item = array.optJSONObject(index) ?: continue
-                    val config = TransferConfig(
-                        serverName = item.optString(KEY_SERVER_NAME),
-                        baseUrl = item.optString(KEY_BASE_URL),
-                        authToken = item.optString(KEY_AUTH_TOKEN),
-                        certificateSha256 = item.optString(KEY_CERT_SHA256),
-                    ).normalized()
-                    if (config.isComplete() && none { it.profileKey() == config.profileKey() }) {
-                        add(config)
-                    }
-                }
-            }
-        } catch (_: Exception) {
-            emptyList()
-        }
+    private fun resolveActiveWithoutLoading(profiles: List<TransferConfig>): TransferConfig? {
+        return ServerProfilePolicy.resolveActive(
+            profiles = profiles,
+            activeProfileId = preferences.getString(KEY_ACTIVE_PROFILE_ID, null),
+            legacyActiveKey = preferences.getString(KEY_ACTIVE_PROFILE, null),
+        )
     }
 
     private fun loadLegacy(): TransferConfig? {
@@ -161,31 +141,28 @@ class SettingsStore(context: Context) {
         return if (config.isComplete()) config else null
     }
 
-    private fun writeProfiles(profiles: List<TransferConfig>, activeKey: String) {
-        val array = JSONArray()
-        profiles.forEach { config ->
-            val normalized = config.normalized()
-            array.put(
-                JSONObject()
-                    .put(KEY_SERVER_NAME, normalized.serverName)
-                    .put(KEY_BASE_URL, normalized.baseUrl)
-                    .put(KEY_AUTH_TOKEN, normalized.authToken)
-                    .put(KEY_CERT_SHA256, normalized.certificateSha256),
-            )
+    private fun writeProfiles(profiles: List<TransferConfig>, active: TransferConfig?) {
+        val normalizedProfiles = ServerProfilePolicy.ensureStableIds(profiles)
+        val normalizedActive = active?.let { target ->
+            normalizedProfiles.firstOrNull { it.id == target.id }
         }
+        val encryptedProfiles = secureCipher.encrypt(ServerProfileJson.encode(normalizedProfiles))
         preferences.edit()
-            .putString(KEY_PROFILES_JSON, array.toString())
-            .putString(KEY_ACTIVE_PROFILE, activeKey)
+            .putString(KEY_PROFILES_ENCRYPTED, encryptedProfiles)
+            .remove(KEY_PROFILES_JSON)
+            .putString(KEY_ACTIVE_PROFILE_ID, normalizedActive?.id.orEmpty())
+            .remove(KEY_ACTIVE_PROFILE)
+            .remove(KEY_SERVER_NAME)
+            .remove(KEY_BASE_URL)
+            .remove(KEY_AUTH_TOKEN)
+            .remove(KEY_CERT_SHA256)
             .apply()
     }
 
-    private fun writeLegacy(config: TransferConfig) {
-        val normalized = config.normalized()
+    private fun writeActiveMetadata(config: TransferConfig) {
         preferences.edit()
-            .putString(KEY_SERVER_NAME, normalized.serverName)
-            .putString(KEY_BASE_URL, normalized.baseUrl)
-            .putString(KEY_AUTH_TOKEN, normalized.authToken)
-            .putString(KEY_CERT_SHA256, normalized.certificateSha256)
+            .putString(KEY_ACTIVE_PROFILE_ID, config.id)
+            .remove(KEY_ACTIVE_PROFILE)
             .apply()
     }
 
@@ -195,18 +172,24 @@ class SettingsStore(context: Context) {
             .remove(KEY_BASE_URL)
             .remove(KEY_AUTH_TOKEN)
             .remove(KEY_CERT_SHA256)
+            .remove(KEY_ACTIVE_PROFILE_ID)
             .remove(KEY_ACTIVE_PROFILE)
             .apply()
     }
 
+    private fun <T> withStoreLock(block: () -> T): T = synchronized(LOCK, block)
+
     private companion object {
+        private const val PREFERENCES_NAME = "lan_secure_share"
+        private const val KEY_PROFILES_ENCRYPTED = "profiles_encrypted_v1"
         private const val KEY_PROFILES_JSON = "profiles_json"
+        private const val KEY_ACTIVE_PROFILE_ID = "active_profile_id"
         private const val KEY_ACTIVE_PROFILE = "active_profile"
         private const val KEY_SERVER_NAME = "server_name"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_CERT_SHA256 = "cert_sha256"
         private const val KEY_THEME_MODE = "theme_mode"
-        private const val KEY_WIDGET_RECEIVING = "widget_receiving"
+        private val LOCK = Any()
     }
 }

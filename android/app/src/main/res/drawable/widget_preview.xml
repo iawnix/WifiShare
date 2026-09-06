@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <size
+                android:width="180dp"
+                android:height="64dp" />
+            <gradient
+                android:angle="315"
+                android:centerColor="@color/widget_surface"
+                android:endColor="@color/widget_glass_bottom"
+                android:startColor="@color/widget_glass_top" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/widget_outline" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+    <item
+        android:bottom="42dp"
+        android:left="14dp"
+        android:right="158dp"
+        android:top="14dp">
+        <shape android:shape="oval">
+            <solid android:color="@color/widget_accent" />
+        </shape>
+    </item>
+    <item
+        android:bottom="36dp"
+        android:left="25dp"
+        android:right="78dp"
+        android:top="18dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/widget_text_primary" />
+            <corners android:radius="3dp" />
+        </shape>
+    </item>
+    <item
+        android:bottom="17dp"
+        android:left="25dp"
+        android:right="92dp"
+        android:top="43dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/widget_text_secondary" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+    <item
+        android:bottom="8dp"
+        android:left="124dp"
+        android:right="8dp"
+        android:top="8dp">
+        <shape android:shape="oval">
+            <gradient
+                android:angle="315"
+                android:endColor="@color/widget_accent_end"
+                android:startColor="@color/widget_accent" />
+        </shape>
+    </item>
+</layer-list>

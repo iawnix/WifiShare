@@ -11,13 +11,50 @@ class DownloadClient(
     private val context: Context,
     private val config: TransferConfig,
 ) {
-    fun fetchAllPending(): Int {
+    fun fetchAllPending(onProgress: (DownloadProgress) -> Unit = {}): Int {
         var received = 0
         while (true) {
+            onProgress(
+                DownloadProgress(
+                    phase = DownloadProgressPhase.CHECKING,
+                    itemIndex = received + 1,
+                    completedItems = received,
+                ),
+            )
             val pending = fetchNext() ?: return received
-            downloadToPhone(pending)
+            onProgress(
+                DownloadProgress(
+                    phase = DownloadProgressPhase.ITEM_STARTED,
+                    itemName = pending.filename,
+                    itemIndex = received + 1,
+                    completedItems = received,
+                    totalBytes = pending.size,
+                ),
+            )
+            downloadToPhone(pending) { bytesReceived ->
+                onProgress(
+                    DownloadProgress(
+                        phase = DownloadProgressPhase.BYTES_RECEIVED,
+                        itemName = pending.filename,
+                        itemIndex = received + 1,
+                        completedItems = received,
+                        bytesReceived = bytesReceived,
+                        totalBytes = pending.size,
+                    ),
+                )
+            }
             acknowledge(pending)
             received += 1
+            onProgress(
+                DownloadProgress(
+                    phase = DownloadProgressPhase.ITEM_COMPLETED,
+                    itemName = pending.filename,
+                    itemIndex = received,
+                    completedItems = received,
+                    bytesReceived = pending.size,
+                    totalBytes = pending.size,
+                ),
+            )
         }
     }
 
@@ -34,7 +71,7 @@ class DownloadClient(
                 204 -> null
                 else -> {
                     val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                    throw IOException("Queue check failed ($responseCode): $errorBody")
+                    throw HttpResponseException(responseCode, "Queue check failed ($responseCode): $errorBody")
                 }
             }
         } finally {
@@ -42,7 +79,7 @@ class DownloadClient(
         }
     }
 
-    private fun downloadToPhone(pending: PendingDownload) {
+    private fun downloadToPhone(pending: PendingDownload, onBytesReceived: (Long) -> Unit) {
         val connection = PinnedTls.open(config, pending.contentPath).apply {
             requestMethod = "GET"
         }
@@ -51,7 +88,7 @@ class DownloadClient(
         if (responseCode !in 200..299) {
             val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
             connection.disconnect()
-            throw IOException("Download failed ($responseCode): $errorBody")
+            throw HttpResponseException(responseCode, "Download failed ($responseCode): $errorBody")
         }
 
         val mimeType = connection.contentType?.substringBefore(";") ?: "application/octet-stream"
@@ -63,12 +100,26 @@ class DownloadClient(
             put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/WifiShare")
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
-        val destination = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: throw IOException("Unable to create download destination")
+        val destination = try {
+            resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: throw StorageWriteException("Unable to create download destination")
+        } catch (exc: StorageWriteException) {
+            throw exc
+        } catch (exc: Exception) {
+            throw StorageWriteException("Unable to create download destination", exc)
+        }
 
         try {
             var total = 0L
-            resolver.openOutputStream(destination)?.use { output ->
+            val outputStream = try {
+                resolver.openOutputStream(destination)
+                    ?: throw StorageWriteException("Unable to open destination stream")
+            } catch (exc: StorageWriteException) {
+                throw exc
+            } catch (exc: Exception) {
+                throw StorageWriteException("Unable to open destination stream", exc)
+            }
+            outputStream.use { output ->
                 connection.inputStream.use { input ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
@@ -76,30 +127,48 @@ class DownloadClient(
                         if (read < 0) {
                             break
                         }
-                        output.write(buffer, 0, read)
+                        try {
+                            output.write(buffer, 0, read)
+                        } catch (exc: Exception) {
+                            throw StorageWriteException("Unable to write destination file", exc)
+                        }
                         digest.update(buffer, 0, read)
                         total += read.toLong()
+                        onBytesReceived(total)
                     }
-                    output.flush()
+                    try {
+                        output.flush()
+                    } catch (exc: Exception) {
+                        throw StorageWriteException("Unable to finish destination file", exc)
+                    }
                 }
-            } ?: throw IOException("Unable to open destination stream")
+            }
 
             val actualDigest = digest.digest().joinToString(separator = "") { "%02x".format(it) }
             if (actualDigest != pending.sha256) {
-                throw IOException("SHA-256 mismatch while receiving ${pending.filename}")
+                throw DownloadIntegrityException("SHA-256 mismatch while receiving ${pending.filename}")
             }
             if (total != pending.size) {
-                throw IOException("Size mismatch while receiving ${pending.filename}")
+                throw DownloadIntegrityException("Size mismatch while receiving ${pending.filename}")
             }
 
-            resolver.update(
-                destination,
-                ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
-                null,
-                null,
-            )
+            try {
+                val updated = resolver.update(
+                    destination,
+                    ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                    null,
+                    null,
+                )
+                if (updated != 1) {
+                    throw StorageWriteException("Unable to publish destination file")
+                }
+            } catch (exc: StorageWriteException) {
+                throw exc
+            } catch (exc: Exception) {
+                throw StorageWriteException("Unable to publish destination file", exc)
+            }
         } catch (exc: Exception) {
-            resolver.delete(destination, null, null)
+            runCatching { resolver.delete(destination, null, null) }
             throw exc
         } finally {
             connection.disconnect()
@@ -118,7 +187,7 @@ class DownloadClient(
             val responseCode = connection.responseCode
             if (responseCode !in 200..299) {
                 val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                throw IOException("Ack failed ($responseCode): $errorBody")
+                throw HttpResponseException(responseCode, "Ack failed ($responseCode): $errorBody")
             }
             connection.inputStream.close()
         } finally {

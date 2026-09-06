@@ -1,0 +1,6 @@
+# Copy to signing.properties only when managing an existing release key.
+# Prefer scripts/configure_release_signing.sh for a new local installation.
+storeFile=.signing/wifishare-release.p12
+storePassword=replace-with-a-strong-secret
+keyAlias=wifishare-release
+keyPassword=replace-with-a-strong-secret

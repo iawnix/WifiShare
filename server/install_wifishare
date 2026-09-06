@@ -12,6 +12,9 @@ ENABLE_SYSTEMD=0
 TARGET_SHELL=""
 RELAY_DIR="$DEFAULT_RELAY_DIR"
 ACTION="install"
+MAX_UPLOAD_MB=""
+MAX_OUTBOX_FILE_MB=""
+MAX_STORAGE_MB=""
 
 installed_env_file() {
   case "$1" in
@@ -26,7 +29,9 @@ WifiShare installer
 
 Usage:
   install_wifishare --ip <LAN_IP> [--enable_systemd] [--shell bash|zsh|fish] [--relay_dir <DIR>]
-  install_wifishare repair [--ip <LAN_IP>] [--enable_systemd] [--shell bash|zsh|fish] [--relay_dir <DIR>]
+                    [--max-upload-mb <MB>] [--max-outbox-file-mb <MB>] [--max-storage-mb <MB>]
+  install_wifishare repair [--ip <LAN_IP>] [--enable_systemd] [--shell bash|zsh|fish]
+                           [--relay_dir <DIR>] [limit options]
 
 Options:
   --ip <LAN_IP>         Linux LAN IP visible to the phone. Required for first install.
@@ -34,6 +39,10 @@ Options:
   --enable_systemed     Compatibility alias for --enable_systemd.
   --shell <shell>       Write shell env hook for bash, zsh, or fish. Defaults to current shell.
   --relay_dir <DIR>     Directory for phone-to-Linux uploads. Default: ~/Downloads/WifiShare.
+  --max-upload-mb <MB>  Maximum size of one phone-to-computer file. Default: 1024.
+  --max-outbox-file-mb <MB>
+                         Maximum size of one computer-to-phone file. Default: 4096.
+  --max-storage-mb <MB> Maximum MiB retained in each transfer store. Default: 10240.
   repair                Rebuild env files, directories, config, and optional systemd unit.
   -h, --help            Print this help.
 
@@ -157,7 +166,8 @@ install_systemd_service() {
   cp "${SCRIPT_DIR}/systemd/wifishare.service" "${HOME}/.config/systemd/user/wifishare.service"
   write_systemd_env
   systemctl --user daemon-reload
-  systemctl --user enable --now wifishare.service
+  systemctl --user enable wifishare.service
+  systemctl --user restart wifishare.service
 }
 
 print_systemd_hint() {
@@ -221,6 +231,33 @@ while [ "$#" -gt 0 ]; do
       RELAY_DIR=$(expand_path "${1#*=}")
       shift
       ;;
+    --max-upload-mb)
+      [ "$#" -ge 2 ] || die "--max-upload-mb requires a value"
+      MAX_UPLOAD_MB="$2"
+      shift 2
+      ;;
+    --max-upload-mb=*)
+      MAX_UPLOAD_MB="${1#*=}"
+      shift
+      ;;
+    --max-outbox-file-mb)
+      [ "$#" -ge 2 ] || die "--max-outbox-file-mb requires a value"
+      MAX_OUTBOX_FILE_MB="$2"
+      shift 2
+      ;;
+    --max-outbox-file-mb=*)
+      MAX_OUTBOX_FILE_MB="${1#*=}"
+      shift
+      ;;
+    --max-storage-mb)
+      [ "$#" -ge 2 ] || die "--max-storage-mb requires a value"
+      MAX_STORAGE_MB="$2"
+      shift 2
+      ;;
+    --max-storage-mb=*)
+      MAX_STORAGE_MB="${1#*=}"
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -240,6 +277,7 @@ if [ -z "$IP" ] && [ ! -f "${STATE_DIR}/config.json" ]; then
 fi
 
 mkdir -p "$STATE_DIR" "$RELAY_DIR" "${STATE_DIR}/phone-outbox"
+chmod 700 "$STATE_DIR" "${STATE_DIR}/phone-outbox"
 write_env_files
 
 export PYTHONPATH="${SCRIPT_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
@@ -247,13 +285,23 @@ export LAN_SECURE_SHARE_DOWNLOAD_DIR="$RELAY_DIR"
 export LAN_SECURE_SHARE_PHONE_QUEUE_DIR="${STATE_DIR}/phone-outbox"
 
 if [ -n "$IP" ]; then
-  python3 -m lss_server init \
+  set -- python3 -m lss_server init \
     --state-dir "$STATE_DIR" \
     --server-name WifiShare \
     --advertise-host "$IP" \
     --upload-dir "$RELAY_DIR" \
     --phone-queue-dir "${STATE_DIR}/phone-outbox" \
     --no-write-pairing
+  [ -n "$MAX_UPLOAD_MB" ] && set -- "$@" --max-upload-mb "$MAX_UPLOAD_MB"
+  [ -n "$MAX_OUTBOX_FILE_MB" ] && set -- "$@" --max-outbox-file-mb "$MAX_OUTBOX_FILE_MB"
+  [ -n "$MAX_STORAGE_MB" ] && set -- "$@" --max-storage-mb "$MAX_STORAGE_MB"
+  "$@"
+elif [ -n "$MAX_UPLOAD_MB" ] || [ -n "$MAX_OUTBOX_FILE_MB" ] || [ -n "$MAX_STORAGE_MB" ]; then
+  set -- python3 -m lss_server configure --config "${STATE_DIR}/config.json"
+  [ -n "$MAX_UPLOAD_MB" ] && set -- "$@" --max-upload-mb "$MAX_UPLOAD_MB"
+  [ -n "$MAX_OUTBOX_FILE_MB" ] && set -- "$@" --max-outbox-file-mb "$MAX_OUTBOX_FILE_MB"
+  [ -n "$MAX_STORAGE_MB" ] && set -- "$@" --max-storage-mb "$MAX_STORAGE_MB"
+  "$@"
 else
   python3 -m lss_server pairing --config "${STATE_DIR}/config.json"
 fi

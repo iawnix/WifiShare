@@ -1,147 +1,105 @@
 package io.iaw.lanshare
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.view.View
-import android.widget.RemoteViews
-import android.widget.Toast
+import android.net.Uri
+import android.os.Bundle
 
 class WifiShareWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        appWidgetIds.forEach { appWidgetId ->
-            updateWidget(context, appWidgetManager, appWidgetId)
-        }
+        updateWidgets(context, appWidgetManager, appWidgetIds)
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        updateWidgets(context, appWidgetManager, intArrayOf(appWidgetId))
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_NEXT_SERVER) {
-            val next = activateNextServer(context)
-            if (next != null) {
-                Toast.makeText(context, context.getString(R.string.server_switched, next.serverName), Toast.LENGTH_SHORT).show()
-            }
+        if (intent.action == ACTION_REFRESH_STATUS) {
             updateAllWidgets(context)
-        }
-        if (intent.action == ACTION_RECEIVE_QUEUE) {
-            try {
-                val serviceIntent = Intent(context, ReceiveQueueService::class.java).apply {
-                    action = ACTION_RECEIVE_QUEUE
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
-            } catch (exc: Exception) {
-                val message = exc.message ?: context.getString(R.string.receive_failed)
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-            }
         }
     }
 
     companion object {
-        private const val ACTION_NEXT_SERVER = "io.iaw.lanshare.action.NEXT_SERVER"
-        private const val ACTION_RECEIVE_QUEUE = "io.iaw.lanshare.action.WIDGET_RECEIVE_QUEUE"
+        private const val ACTION_REFRESH_STATUS = "io.iaw.lanshare.action.REFRESH_WIDGET_STATUS"
+        private const val STATUS_REFRESH_REQUEST_CODE = 7001
 
         fun updateAllWidgets(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, WifiShareWidgetProvider::class.java))
-            ids.forEach { appWidgetId ->
-                updateWidget(context, manager, appWidgetId)
+            updateWidgets(context, manager, ids)
+        }
+
+        fun updateWidget(context: Context, appWidgetId: Int) {
+            updateWidgets(
+                context,
+                AppWidgetManager.getInstance(context),
+                intArrayOf(appWidgetId),
+            )
+        }
+
+        private fun updateWidgets(
+            context: Context,
+            manager: AppWidgetManager,
+            appWidgetIds: IntArray,
+        ) {
+            val renderingContext = AppLanguageController.localizedContext(context)
+            val settingsStore = SettingsStore(context)
+            val themePolicy = WidgetThemeResolver.resolve(settingsStore.loadThemeMode())
+            val activeConfig = settingsStore.loadActive()
+            val status = TransferStatusStore(context).load()
+
+            appWidgetIds.forEach { appWidgetId ->
+                val options = manager.getAppWidgetOptions(appWidgetId)
+                val views = WifiShareWidgetRenderer.render(
+                    context = renderingContext,
+                    appWidgetId = appWidgetId,
+                    options = options,
+                    config = activeConfig,
+                    globalStatus = status,
+                    themePolicy = themePolicy,
+                )
+                manager.updateAppWidget(appWidgetId, views)
             }
+            scheduleStatusRefresh(context, status)
         }
 
-        private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
-            val store = SettingsStore(context)
-            val profiles = store.loadAll()
-            val active = store.loadActive()
-            val receiving = store.isWidgetReceiving()
-            val views = RemoteViews(context.packageName, R.layout.widget_wifishare)
-
-            views.setTextViewText(R.id.widgetServerName, active?.serverName ?: context.getString(R.string.receiver_missing))
-            views.setTextViewText(R.id.widgetServerUrl, active?.baseUrl ?: context.getString(R.string.receiver_url_empty))
-            views.setTextViewText(
-                R.id.widgetModeLabel,
-                if (receiving) context.getString(R.string.widget_receiving) else context.getString(R.string.widget_receive_idle),
-            )
-            views.setViewVisibility(R.id.widgetReceiveProgress, if (receiving) View.VISIBLE else View.GONE)
-            views.setTextViewText(
-                R.id.widgetSwitchButton,
-                when {
-                    profiles.isEmpty() -> context.getString(R.string.widget_open_settings)
-                    profiles.size == 1 -> context.getString(R.string.widget_single_server)
-                    else -> context.getString(R.string.widget_switch_server)
-                },
-            )
-
-            views.setOnClickPendingIntent(R.id.widgetRoot, openMainIntent(context))
-            views.setOnClickPendingIntent(
-                R.id.widgetSwitchButton,
-                if (profiles.size > 1) switchServerIntent(context) else openSettingsIntent(context),
-            )
-            views.setOnClickPendingIntent(
-                R.id.widgetReceiveButton,
-                when {
-                    receiving -> openMainIntent(context)
-                    active != null -> receiveIntent(context)
-                    else -> openSettingsIntent(context)
-                },
-            )
-            views.setTextViewText(
-                R.id.widgetReceiveButton,
-                if (receiving) context.getString(R.string.widget_receiving) else context.getString(R.string.widget_receive),
-            )
-
-            manager.updateAppWidget(widgetId, views)
+        private fun scheduleStatusRefresh(context: Context, status: TransferStatus) {
+            val alarmManager = context.getSystemService(AlarmManager::class.java)
+            val pendingIntent = statusRefreshIntent(context)
+            alarmManager.cancel(pendingIntent)
+            val now = System.currentTimeMillis()
+            val delay = TransferStatusMachine.nextRefreshDelayMillis(status, now) ?: return
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, now + delay, pendingIntent)
         }
 
-        private fun activateNextServer(context: Context): TransferConfig? {
-            val store = SettingsStore(context)
-            val profiles = store.loadAll()
-            if (profiles.isEmpty()) {
-                return null
-            }
-            val activeKey = store.loadActive()?.profileKey()
-            val activeIndex = profiles.indexOfFirst { it.profileKey() == activeKey }.takeIf { it >= 0 } ?: 0
-            val next = profiles[(activeIndex + 1) % profiles.size]
-            return if (store.setActive(next)) next else null
-        }
-
-        private fun switchServerIntent(context: Context): PendingIntent {
+        private fun statusRefreshIntent(context: Context): PendingIntent {
             val intent = Intent(context, WifiShareWidgetProvider::class.java).apply {
-                action = ACTION_NEXT_SERVER
+                action = ACTION_REFRESH_STATUS
+                data = Uri.parse(
+                    WidgetPendingIntentIdentity.dataUri(
+                        AppWidgetManager.INVALID_APPWIDGET_ID,
+                        WidgetPendingIntentKind.STATUS_REFRESH,
+                    ),
+                )
             }
-            return PendingIntent.getBroadcast(context, 1, intent, pendingIntentFlags())
-        }
-
-        private fun receiveIntent(context: Context): PendingIntent {
-            val intent = Intent(context, WifiShareWidgetProvider::class.java).apply {
-                action = ACTION_RECEIVE_QUEUE
-            }
-            return PendingIntent.getBroadcast(context, 2, intent, pendingIntentFlags())
-        }
-
-        private fun openMainIntent(context: Context): PendingIntent {
-            val intent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            return PendingIntent.getActivity(context, 3, intent, pendingIntentFlags())
-        }
-
-        private fun openSettingsIntent(context: Context): PendingIntent {
-            val intent = Intent(context, SettingsActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            return PendingIntent.getActivity(context, 4, intent, pendingIntentFlags())
-        }
-
-        private fun pendingIntentFlags(): Int {
-            return PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            return PendingIntent.getBroadcast(
+                context,
+                STATUS_REFRESH_REQUEST_CODE,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
         }
     }
 }

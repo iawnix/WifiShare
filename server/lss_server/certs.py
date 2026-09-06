@@ -8,6 +8,8 @@ import secrets
 import ssl
 import subprocess
 
+from .security import ensure_private_directory
+
 
 def generate_auth_token() -> str:
     return secrets.token_urlsafe(32)
@@ -30,8 +32,8 @@ def generate_self_signed_certificate(
     common_name: str,
     advertise_host: str,
 ) -> None:
-    cert_path.parent.mkdir(parents=True, exist_ok=True)
-    key_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_private_directory(cert_path.parent)
+    ensure_private_directory(key_path.parent)
 
     command = [
         "openssl",
@@ -60,6 +62,7 @@ def generate_self_signed_certificate(
         raise RuntimeError(exc.stderr.strip() or "openssl failed to generate a certificate") from exc
 
     os.chmod(key_path, 0o600)
+    os.chmod(cert_path, 0o644)
 
 
 def certificate_sha256(cert_path: Path) -> str:

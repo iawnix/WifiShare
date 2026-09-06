@@ -5,7 +5,11 @@ server/nohup.out
 server/*.log
 
 android/.gradle/
+android/.gradle-local/
+android/.android-user/
 android/.kotlin/
 android/build/
 android/app/build/
 android/local.properties
+android/.signing/
+android/signing.properties

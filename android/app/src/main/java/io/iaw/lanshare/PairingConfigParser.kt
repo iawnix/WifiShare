@@ -10,6 +10,9 @@ object PairingConfigParser {
     }
 
     private fun fromUri(uri: Uri): TransferConfig? {
+        if (uri.toString().length > MAX_PAIRING_URI_LENGTH) {
+            return null
+        }
         if (uri.scheme != "lss" || uri.host != "pair") {
             return null
         }
@@ -27,4 +30,6 @@ object PairingConfigParser {
         )
         return if (config.isComplete()) config else null
     }
+
+    private const val MAX_PAIRING_URI_LENGTH = 4096
 }

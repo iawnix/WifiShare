@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/lss_graphite" />
-    <corners android:radius="8dp" />
+    <gradient
+        android:angle="315"
+        android:endColor="@color/lss_teal"
+        android:startColor="@color/lss_graphite" />
+    <corners android:radius="18dp" />
     <padding
         android:bottom="10dp"
         android:left="14dp"

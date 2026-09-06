@@ -12,6 +12,7 @@ data class SharedItem(
     val uri: Uri,
     val displayName: String,
     val mimeType: String?,
+    val sizeBytes: Long?,
 )
 
 object ShareIntentParser {
@@ -50,23 +51,43 @@ object ShareIntentParser {
 
     private fun buildItem(context: Context, uri: Uri): SharedItem {
         val resolver = context.contentResolver
-        val displayName = queryDisplayName(resolver, uri) ?: uri.lastPathSegment ?: "shared-file"
+        val metadata = queryMetadata(resolver, uri)
+        val displayName = metadata.displayName ?: uri.lastPathSegment ?: "shared-file"
         val mimeType = resolver.getType(uri)
-        return SharedItem(uri = uri, displayName = displayName, mimeType = mimeType)
+        return SharedItem(
+            uri = uri,
+            displayName = displayName,
+            mimeType = mimeType,
+            sizeBytes = metadata.sizeBytes,
+        )
     }
 
-    private fun queryDisplayName(resolver: ContentResolver, uri: Uri): String? {
-        val cursor: Cursor = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-            ?: return null
+    private fun queryMetadata(resolver: ContentResolver, uri: Uri): SharedItemMetadata {
+        val cursor: Cursor = resolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+            null,
+            null,
+            null,
+        ) ?: return SharedItemMetadata()
         cursor.use {
             if (!it.moveToFirst()) {
-                return null
+                return SharedItemMetadata()
             }
-            val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (index < 0) {
-                return null
-            }
-            return it.getString(index)
+            val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val sizeIndex = it.getColumnIndex(OpenableColumns.SIZE)
+            return SharedItemMetadata(
+                displayName = nameIndex.takeIf { index -> index >= 0 && !it.isNull(index) }
+                    ?.let(it::getString),
+                sizeBytes = sizeIndex.takeIf { index -> index >= 0 && !it.isNull(index) }
+                    ?.let(it::getLong)
+                    ?.takeIf { size -> size >= 0L },
+            )
         }
     }
+
+    private data class SharedItemMetadata(
+        val displayName: String? = null,
+        val sizeBytes: Long? = null,
+    )
 }

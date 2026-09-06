@@ -29,6 +29,7 @@ object PinnedTls {
 
             override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
                 val certificate = chain.firstOrNull() ?: throw CertificateException("No server certificate")
+                certificate.checkValidity()
                 val actual = MessageDigest.getInstance("SHA-256")
                     .digest(certificate.encoded)
                     .joinToString(separator = "") { "%02x".format(it) }

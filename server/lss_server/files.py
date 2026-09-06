@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 import re
 
@@ -12,7 +13,13 @@ _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 def sanitize_filename(name: str) -> str:
     candidate = Path(name).name.strip().strip(".")
     candidate = _INVALID_FILENAME_CHARS.sub("_", candidate)
-    return candidate or "upload.bin"
+    if not candidate:
+        return "upload.bin"
+    if len(candidate) <= 180:
+        return candidate
+    suffix = Path(candidate).suffix[:20]
+    stem_limit = max(1, 180 - len(suffix))
+    return candidate[:stem_limit].rstrip(". ") + suffix
 
 
 def normalize_sha256(value: str) -> str:
@@ -41,13 +48,15 @@ def copy_file_with_sha256(source: Path, destination: Path) -> tuple[str, int]:
     digest = hashlib.sha256()
     total_size = 0
 
-    with source.open("rb") as input_handle, destination.open("wb") as output_handle:
-        while True:
-            chunk = input_handle.read(1024 * 1024)
-            if not chunk:
-                break
-            output_handle.write(chunk)
-            digest.update(chunk)
-            total_size += len(chunk)
+    with source.open("rb") as input_handle:
+        descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as output_handle:
+            while True:
+                chunk = input_handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                output_handle.write(chunk)
+                digest.update(chunk)
+                total_size += len(chunk)
 
     return digest.hexdigest(), total_size

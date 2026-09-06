@@ -4,13 +4,22 @@ import android.content.Context
 import android.os.Build
 import java.io.IOException
 import java.security.MessageDigest
+import javax.net.ssl.HttpsURLConnection
 
-class UploadClient(
+internal class UploadClient(
     private val context: Context,
     private val config: TransferConfig,
 ) {
-    fun upload(item: SharedItem) {
-        val (sha256, sizeBytes) = computeSha256AndSize(item)
+    fun upload(
+        item: SharedItem,
+        cancellation: UploadCancellationToken,
+        onPrepared: (Long) -> Unit,
+        onProgress: (bytesSent: Long, totalBytes: Long) -> Unit,
+    ) {
+        cancellation.throwIfCancelled()
+        val (sha256, sizeBytes) = computeSha256AndSize(item, cancellation)
+        cancellation.throwIfCancelled()
+        onPrepared(sizeBytes)
         val connection = PinnedTls.open(config, "/api/v1/uploads").apply {
             requestMethod = "POST"
             doOutput = true
@@ -20,46 +29,112 @@ class UploadClient(
             setRequestProperty("Content-Type", item.mimeType ?: "application/octet-stream")
             setFixedLengthStreamingMode(sizeBytes)
         }
+        cancellation.attach(connection)
 
         try {
-            context.contentResolver.openInputStream(item.uri)?.use { input ->
-                connection.outputStream.use { output ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read < 0) {
-                            break
-                        }
-                        output.write(buffer, 0, read)
+            val input = try {
+                context.contentResolver.openInputStream(item.uri)
+            } catch (error: Exception) {
+                throw SharedFileUnavailableException("Unable to open shared file", error)
+            } ?: throw SharedFileUnavailableException("Unable to open shared file")
+            input.use {
+                cancellation.attach(input)
+                try {
+                    val output = try {
+                        connection.outputStream
+                    } catch (error: Exception) {
+                        cancellation.throwIfCancelled()
+                        throw error
                     }
+                    output.use {
+                        cancellation.attach(output)
+                        try {
+                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                            var bytesSent = 0L
+                            while (true) {
+                                cancellation.throwIfCancelled()
+                                val read = input.read(buffer)
+                                if (read < 0) {
+                                    break
+                                }
+                                cancellation.throwIfCancelled()
+                                output.write(buffer, 0, read)
+                                bytesSent += read.toLong()
+                                onProgress(bytesSent, sizeBytes)
+                            }
+                            output.flush()
+                        } finally {
+                            cancellation.detach(output)
+                        }
+                    }
+                } finally {
+                    cancellation.detach(input)
                 }
-            } ?: throw IOException("Unable to open shared file: ${item.displayName}")
+            }
 
+            cancellation.throwIfCancelled()
             val responseCode = connection.responseCode
             if (responseCode !in 200..299) {
-                val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                throw IOException("Upload failed (${responseCode}): $errorBody")
+                connection.errorStream?.use { }
+                throw HttpResponseException(responseCode, "Upload rejected")
             }
-            connection.inputStream.close()
+            connection.inputStream.use { }
+        } catch (error: Exception) {
+            cancellation.throwIfCancelled()
+            throw responseFailureOrOriginal(connection, error)
         } finally {
+            cancellation.detach(connection)
             connection.disconnect()
         }
     }
 
-    private fun computeSha256AndSize(item: SharedItem): Pair<String, Long> {
+    private fun computeSha256AndSize(
+        item: SharedItem,
+        cancellation: UploadCancellationToken,
+    ): Pair<String, Long> {
         val digest = MessageDigest.getInstance("SHA-256")
         var total = 0L
-        context.contentResolver.openInputStream(item.uri)?.use { input ->
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) {
-                    break
+        val input = try {
+            context.contentResolver.openInputStream(item.uri)
+        } catch (error: Exception) {
+            throw SharedFileUnavailableException("Unable to open shared file", error)
+        } ?: throw SharedFileUnavailableException("Unable to open shared file")
+        input.use {
+            cancellation.attach(input)
+            try {
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    cancellation.throwIfCancelled()
+                    val read = input.read(buffer)
+                    if (read < 0) {
+                        break
+                    }
+                    digest.update(buffer, 0, read)
+                    total += read.toLong()
                 }
-                digest.update(buffer, 0, read)
-                total += read.toLong()
+            } finally {
+                cancellation.detach(input)
             }
-        } ?: throw IOException("Unable to open shared file: ${item.displayName}")
+        }
         return digest.digest().joinToString(separator = "") { "%02x".format(it) } to total
+    }
+
+    private fun responseFailureOrOriginal(
+        connection: HttpsURLConnection,
+        error: Exception,
+    ): Exception {
+        if (error is HttpResponseException || error is SharedFileUnavailableException) {
+            return error
+        }
+        val responseCode = try {
+            connection.responseCode
+        } catch (_: Exception) {
+            return error
+        }
+        if (responseCode in 200..299) {
+            return error
+        }
+        runCatching { connection.errorStream?.close() }
+        return HttpResponseException(responseCode, "Upload rejected")
     }
 }

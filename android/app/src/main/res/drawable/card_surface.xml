@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/lss_card" />
+    <gradient
+        android:angle="315"
+        android:centerColor="@color/lss_card"
+        android:endColor="#8EF4F4F7"
+        android:startColor="#E0FFFFFF" />
     <stroke
         android:width="1dp"
         android:color="@color/lss_line" />

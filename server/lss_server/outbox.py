@@ -4,9 +4,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import re
 import secrets
+import shutil
 
 from .files import copy_file_with_sha256, normalize_sha256, sanitize_filename
+from .security import atomic_write_private_text, directory_size, ensure_private_directory
 
 
 @dataclass(slots=True)
@@ -33,17 +36,35 @@ class PhoneTransfer:
 DEFAULT_LEASE_SECONDS = 300
 _PENDING_DIR = "pending"
 _INFLIGHT_DIR = "inflight"
+_TRANSFER_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{1,96}$")
 
 
-def queue_phone_file(queue_dir: Path, source_path: Path) -> PhoneTransfer:
+def queue_phone_file(
+    queue_dir: Path,
+    source_path: Path,
+    *,
+    max_file_bytes: int | None = None,
+    max_total_bytes: int | None = None,
+    min_free_bytes: int = 0,
+) -> PhoneTransfer:
     source = source_path.expanduser()
     if not source.exists():
         raise FileNotFoundError(source)
     if not source.is_file():
         raise ValueError(f"not a regular file: {source}")
 
+    source_size = source.stat().st_size
+    if max_file_bytes is not None and source_size > max_file_bytes:
+        raise ValueError(f"file exceeds outbox limit of {max_file_bytes} bytes: {source}")
+
+    ensure_private_directory(queue_dir)
+    if max_total_bytes is not None and directory_size(queue_dir) + source_size > max_total_bytes:
+        raise ValueError(f"phone queue exceeds storage limit of {max_total_bytes} bytes")
+    if shutil.disk_usage(queue_dir).free - source_size < min_free_bytes:
+        raise ValueError("not enough free disk space to queue file")
+
     pending_dir = queue_dir / _PENDING_DIR
-    pending_dir.mkdir(parents=True, exist_ok=True)
+    ensure_private_directory(pending_dir)
 
     transfer_id = _new_transfer_id()
     filename = sanitize_filename(source.name)
@@ -63,9 +84,9 @@ def queue_phone_file(queue_dir: Path, source_path: Path) -> PhoneTransfer:
             payload_path=final_payload_path,
         )
 
-        temp_meta_path.write_text(
+        atomic_write_private_text(
+            temp_meta_path,
             json.dumps(transfer.to_payload(), indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
         )
         temp_payload_path.replace(final_payload_path)
         temp_meta_path.replace(meta_path)
@@ -119,6 +140,8 @@ def _load_transfer_from_meta(meta_path: Path) -> PhoneTransfer | None:
 
     try:
         transfer_id = str(payload["transfer_id"])
+        if not _TRANSFER_ID_PATTERN.fullmatch(transfer_id):
+            return None
         filename = sanitize_filename(str(payload["filename"]))
         sha256 = normalize_sha256(str(payload["sha256"]))
         size = int(payload["size"])
@@ -143,7 +166,7 @@ def _load_transfer_from_meta(meta_path: Path) -> PhoneTransfer | None:
 
 
 def _new_transfer_id() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + secrets.token_hex(4)
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + secrets.token_hex(16)
 
 
 def _utc_now() -> str:
@@ -153,7 +176,7 @@ def _utc_now() -> str:
 def _lease_transfer(queue_dir: Path, transfer: PhoneTransfer, lease_seconds: int) -> PhoneTransfer | None:
     pending_dir = queue_dir / _PENDING_DIR
     inflight_dir = queue_dir / _INFLIGHT_DIR
-    inflight_dir.mkdir(parents=True, exist_ok=True)
+    ensure_private_directory(inflight_dir)
 
     pending_meta_path = pending_dir / f"{transfer.transfer_id}.json"
     pending_payload_path = pending_dir / f"{transfer.transfer_id}.payload"
@@ -176,9 +199,9 @@ def _lease_transfer(queue_dir: Path, transfer: PhoneTransfer, lease_seconds: int
     temp_meta_path = inflight_dir / f".{transfer.transfer_id}.json.part"
 
     pending_payload_path.replace(inflight_payload_path)
-    temp_meta_path.write_text(
+    atomic_write_private_text(
+        temp_meta_path,
         json.dumps(leased.to_payload(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
     )
     temp_meta_path.replace(inflight_meta_path)
     pending_meta_path.unlink(missing_ok=True)
@@ -192,7 +215,7 @@ def _recover_expired_leases(queue_dir: Path) -> None:
 
     now = datetime.now(timezone.utc)
     pending_dir = queue_dir / _PENDING_DIR
-    pending_dir.mkdir(parents=True, exist_ok=True)
+    ensure_private_directory(pending_dir)
     for meta_path in sorted(inflight_dir.glob("*.json")):
         payload = _read_json(meta_path)
         if payload is None:
@@ -208,9 +231,9 @@ def _recover_expired_leases(queue_dir: Path) -> None:
         payload.pop("leased_at", None)
         payload.pop("lease_expires_at", None)
         transfer.payload_path.replace(pending_payload_path)
-        pending_meta_path.write_text(
+        atomic_write_private_text(
+            pending_meta_path,
             json.dumps(payload, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
         )
         meta_path.unlink(missing_ok=True)
 

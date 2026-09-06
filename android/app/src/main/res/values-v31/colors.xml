@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_surface">#DFFFFFFF</color>
+    <color name="widget_glass_top">#F6FFFFFF</color>
+    <color name="widget_glass_bottom">#CCDCDCE1</color>
+    <color name="widget_outline">#ECFFFFFF</color>
+    <color name="widget_text_primary">@android:color/system_neutral1_900</color>
+    <color name="widget_text_secondary">@android:color/system_neutral2_700</color>
+    <color name="widget_accent">#007AFF</color>
+    <color name="widget_accent_end">#0056B9</color>
+    <color name="widget_on_accent">#FFFFFF</color>
+    <color name="widget_progress_track">#223C3C43</color>
+</resources>
