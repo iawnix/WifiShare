@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="diagnostics"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_info_details"
+        android:shortcutShortLabel="@string/diagnostics_shortcut"
+        android:shortcutLongLabel="@string/diagnostics_app_name">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="io.iaw.lanshare"
+            android:targetClass="io.iaw.lanshare.DiagnosticsActivity" />
+    </shortcut>
+</shortcuts>

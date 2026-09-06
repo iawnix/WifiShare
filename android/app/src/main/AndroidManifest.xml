@@ -13,6 +13,7 @@
     <uses-permission android:name="io.iaw.lanshare.permission.INTERNAL_BROADCAST" />
 
     <application
+        android:name=".WifiShareApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -63,9 +64,19 @@
 
         <activity
             android:name=".ServerPickerActivity"
-            android:exported="true">
+            android:exported="false" />
+
+        <!-- A separate, framework-only process can export logs even if the main process crashes. -->
+        <activity
+            android:name=".DiagnosticsActivity"
+            android:exported="true"
+            android:label="@string/diagnostics_app_name"
+            android:process=":diagnostics"
+            android:taskAffinity="${applicationId}.diagnostics"
+            android:theme="@style/Theme.WifiShare.Diagnostics">
             <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
@@ -73,6 +84,9 @@
             android:name=".MainActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

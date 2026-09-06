@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
-import android.graphics.Rect
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -43,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var homeActions: View
     private lateinit var serverRailScroll: HorizontalScrollView
     private lateinit var serverRailView: LinearLayout
+    private lateinit var serverRailScroller: ServerRailScroller
     private lateinit var serverCountView: TextView
     private lateinit var homeContextDot: View
     private lateinit var homeContextStatusView: TextView
@@ -72,9 +72,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var uploadDestinationIconView: ImageView
     private lateinit var receiveProgressView: ProgressBar
     private lateinit var uploadProgressView: ProgressBar
-    private lateinit var selectFilesButton: Button
+    private lateinit var selectFilesButton: ImageButton
     private lateinit var sendButton: Button
-    private lateinit var receiveButton: Button
+    private lateinit var receiveButton: ImageButton
     private lateinit var clearDraftButton: ImageButton
     private lateinit var changeServerButton: ImageButton
     private lateinit var cancelUploadButton: Button
@@ -87,7 +87,7 @@ class MainActivity : AppCompatActivity() {
     private var draftMessage: CharSequence? = null
     private var optimisticUploadStatus: UploadStatus? = null
     private var receiveLaunchPending = false
-    private var lastUploadToastKey: String? = null
+    private val registeredReceivers = mutableListOf<BroadcastReceiver>()
     private var pairingDialog: AlertDialog? = null
 
     private val filePickerLauncher = registerForActivityResult(
@@ -119,17 +119,6 @@ class MainActivity : AppCompatActivity() {
                 optimisticUploadStatus = null
             }
             renderUploadStatus(currentStatus)
-            if (currentStatus.isTerminal()) {
-                val toastKey = "${currentStatus.operationId}:${currentStatus.phase}"
-                if (toastKey != lastUploadToastKey) {
-                    lastUploadToastKey = toastKey
-                    Toast.makeText(
-                        this@MainActivity,
-                        uploadMessageFor(currentStatus),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-            }
         }
     }
 
@@ -139,13 +128,7 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             receiveLaunchPending = false
-            val status = TransferStatusStore(this@MainActivity).load()
             renderCurrentScreen()
-            Toast.makeText(
-                this@MainActivity,
-                receiveMessageFor(status),
-                Toast.LENGTH_LONG,
-            ).show()
         }
     }
 
@@ -210,10 +193,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (::serverRailScroller.isInitialized) serverRailScroller.cancel()
         pairingDialog?.dismiss()
-        unregisterReceiver(uploadStatusReceiver)
-        unregisterReceiver(receiveCompletionReceiver)
+        registeredReceivers.forEach { unregisterReceiver(it) }
+        registeredReceivers.clear()
         super.onDestroy()
+    }
+
+    override fun onStop() {
+        if (::serverRailScroller.isInitialized) serverRailScroller.cancel()
+        super.onStop()
     }
 
     private fun bindViews() {
@@ -224,6 +213,7 @@ class MainActivity : AppCompatActivity() {
         homeActions = findViewById(R.id.homeActions)
         serverRailScroll = findViewById(R.id.serverRailScroll)
         serverRailView = findViewById(R.id.serverRail)
+        serverRailScroller = ServerRailScroller(serverRailScroll, serverRailView, dp(8))
         serverCountView = findViewById(R.id.serverCountPill)
         homeContextDot = findViewById(R.id.homeContextDot)
         homeContextStatusView = findViewById(R.id.homeContextStatus)
@@ -389,10 +379,8 @@ class MainActivity : AppCompatActivity() {
             receiveLaunchPending = false
         }
         if (config == null) {
-            receiveButton.contentDescription = getString(R.string.widget_receive)
             homeContextStatusView.setText(R.string.no_server_selected)
         } else {
-            receiveButton.contentDescription = getString(R.string.receive_from_server, config.serverName)
             homeContextStatusView.text = endpointLabel(config.baseUrl)
         }
         homeContextDot.background = GradientDrawableFactory.statusDot(palette, config != null)
@@ -420,6 +408,8 @@ class MainActivity : AppCompatActivity() {
         )
         manageServersButton.alpha = if (transferActive) 0.48f else 1f
 
+        // A previous render may still have a pending reveal of a tile about to be removed.
+        serverRailScroller.cancel()
         serverRailView.removeAllViews()
         var selectedTile: View? = null
         var addTileInserted = false
@@ -444,9 +434,7 @@ class MainActivity : AppCompatActivity() {
             addServerTileToRail(transferActive)
         }
 
-        selectedTile?.let { tile ->
-            serverRailScroll.post { ensureServerTileVisible(tile, animateSelection) }
-        }
+        serverRailScroller.schedule(selectedTile, animateSelection)
     }
 
     private fun addServerTileToRail(transferActive: Boolean) {
@@ -562,7 +550,7 @@ class MainActivity : AppCompatActivity() {
                 transferActive = isAnyTransferActive(),
             )
         ) {
-            HomeServerSelectionDecision.ALREADY_ACTIVE -> ensureServerTileVisible(source, animate = true)
+            HomeServerSelectionDecision.ALREADY_ACTIVE -> serverRailScroller.schedule(source, animate = true)
             HomeServerSelectionDecision.BLOCKED_BY_TRANSFER -> showServerSwitchLocked()
             HomeServerSelectionDecision.SELECT -> {
                 if (!settingsStore.setActive(profile)) {
@@ -572,30 +560,6 @@ class MainActivity : AppCompatActivity() {
                 WifiShareWidgetProvider.updateAllWidgets(applicationContext)
                 renderHome(animateServerSelection = true)
             }
-        }
-    }
-
-    private fun ensureServerTileVisible(tile: View, animate: Boolean) {
-        if (serverRailScroll.width <= 0) {
-            return
-        }
-        val bounds = Rect(0, 0, tile.width, tile.height)
-        serverRailView.offsetDescendantRectToMyCoords(tile, bounds)
-        val inset = dp(8)
-        val visibleLeft = serverRailScroll.scrollX
-        val visibleRight = visibleLeft + serverRailScroll.width
-        val target = when {
-            bounds.left - inset < visibleLeft -> bounds.left - inset
-            bounds.right + inset > visibleRight -> bounds.right + inset - serverRailScroll.width
-            else -> visibleLeft
-        }.coerceIn(0, (serverRailView.width - serverRailScroll.width).coerceAtLeast(0))
-        if (target == visibleLeft) {
-            return
-        }
-        if (animate) {
-            serverRailScroll.smoothScrollTo(target, 0)
-        } else {
-            serverRailScroll.scrollTo(target, 0)
         }
     }
 
@@ -622,11 +586,14 @@ class MainActivity : AppCompatActivity() {
         val receiving = receiveLaunchPending || status.isActive()
         receiveButton.isEnabled = config != null && !receiving
         receiveButton.alpha = if (receiveButton.isEnabled) 1f else 0.48f
-        receiveButton.text = when {
-            receiveLaunchPending && !status.isActive() -> getString(R.string.widget_checking)
-            receiving -> getString(R.string.widget_receiving)
-            else -> getString(R.string.receive_now)
-        }
+        updateReceiveActionLabel(
+            when {
+                receiveLaunchPending && !status.isActive() -> getString(R.string.widget_checking)
+                receiving -> getString(R.string.widget_receiving)
+                config != null -> getString(R.string.receive_from_server, config.serverName)
+                else -> getString(R.string.receive_now)
+            },
+        )
         receiveProgressView.visibility = if (receiving) View.VISIBLE else View.GONE
         receiveProgressView.isIndeterminate = receiveLaunchPending ||
             status.phase != TransferPhase.RECEIVING ||
@@ -1088,7 +1055,7 @@ class MainActivity : AppCompatActivity() {
         receiveLaunchPending = true
         receiveButton.isEnabled = false
         receiveButton.alpha = 0.48f
-        receiveButton.text = getString(R.string.widget_checking)
+        updateReceiveActionLabel(getString(R.string.widget_checking))
         receiveProgressView.visibility = View.VISIBLE
         showHomeMessage(getString(R.string.checking_queue))
         try {
@@ -1099,9 +1066,14 @@ class MainActivity : AppCompatActivity() {
             showHomeMessage(getString(R.string.receive_failed))
             receiveButton.isEnabled = true
             receiveButton.alpha = 1f
-            receiveButton.text = getString(R.string.receive_now)
+            updateReceiveActionLabel(getString(R.string.receive_from_server, config.serverName))
             receiveProgressView.visibility = View.GONE
         }
+    }
+
+    private fun updateReceiveActionLabel(label: CharSequence) {
+        receiveButton.contentDescription = label
+        receiveButton.tooltipText = label
     }
 
     private fun openServerPicker() {
@@ -1124,6 +1096,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showOnly(panel: View) {
+        if (panel !== homePanel) serverRailScroller.cancel()
         val changing = panel.visibility != View.VISIBLE
         if (changing) {
             UiMotion.begin(rootView as ViewGroup, 180L)
@@ -1253,8 +1226,8 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<View>(R.id.draftDestination).background = GradientDrawableFactory.selectionSurface(palette)
         AppTheme.applyGlassDock(homeActions, palette)
-        AppTheme.applyDockActionButton(selectFilesButton, palette)
-        AppTheme.applyDockActionButton(receiveButton, palette)
+        AppTheme.applyBareIconButton(selectFilesButton, palette, palette.accent)
+        AppTheme.applyBareIconButton(receiveButton, palette, palette.accent)
         AppTheme.applyPrimaryButton(sendButton, palette)
         AppTheme.applyOutlineButton(cancelUploadButton, palette, palette.danger)
         AppTheme.applyProgress(receiveProgressView, palette)
@@ -1284,6 +1257,9 @@ class MainActivity : AppCompatActivity() {
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
             return
         }
+        val prompts = getSharedPreferences("permission_prompts", MODE_PRIVATE)
+        if (prompts.getBoolean("notifications_requested", false)) return
+        prompts.edit().putBoolean("notifications_requested", true).apply()
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATION_PERMISSION)
     }
 
@@ -1295,6 +1271,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             registerReceiver(receiver, filter, InternalBroadcasts.PERMISSION, null)
         }
+        registeredReceivers += receiver
     }
 
     companion object {

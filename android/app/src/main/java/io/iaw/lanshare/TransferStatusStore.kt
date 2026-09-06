@@ -78,6 +78,10 @@ class TransferStatusStore(context: Context) {
         status
     }
 
+    fun bindServer(operationId: String, serverId: String): TransferStatus? = synchronized(LOCK) {
+        updateOperation(operationId) { TransferStatusMachine.bindServer(it, serverId) }
+    }
+
     fun updateChecking(operationId: String, completedItems: Int, now: Long): TransferStatus? =
         synchronized(LOCK) {
             updateOperation(operationId) { TransferStatusMachine.checking(it, completedItems, now) }

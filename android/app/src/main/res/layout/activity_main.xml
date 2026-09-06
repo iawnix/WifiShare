@@ -623,52 +623,37 @@
         android:orientation="horizontal"
         android:padding="5dp">
 
-        <Button
+        <ImageButton
             android:id="@+id/selectFilesButton"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="@android:color/transparent"
-            android:drawableStart="@drawable/ic_upload"
-            android:drawablePadding="9dp"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif-medium"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:minHeight="0dp"
-            android:minWidth="0dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:text="@string/send_now"
-            android:textAllCaps="false"
-            android:textSize="14sp" />
+            android:contentDescription="@string/send_now"
+            android:tooltipText="@string/send_now"
+            android:minHeight="48dp"
+            android:minWidth="48dp"
+            android:padding="12dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_upload" />
 
         <View
             android:layout_width="1dp"
             android:layout_height="30dp"
             android:background="@color/lss_line" />
 
-        <Button
+        <ImageButton
             android:id="@+id/receiveButton"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="@android:color/transparent"
             android:contentDescription="@string/widget_receive"
-            android:drawableStart="@drawable/ic_download"
-            android:drawablePadding="9dp"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif-medium"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:minHeight="0dp"
-            android:minWidth="0dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:text="@string/receive_now"
-            android:textAllCaps="false"
-            android:textSize="14sp" />
+            android:tooltipText="@string/receive_now"
+            android:minHeight="48dp"
+            android:minWidth="48dp"
+            android:padding="12dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_download" />
     </LinearLayout>
 </LinearLayout>

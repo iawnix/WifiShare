@@ -7,6 +7,16 @@ import org.junit.Test
 
 class TransferStatusMachineTest {
     @Test
+    fun delayedCredentialLoadingCannotReviveOrRetargetAnOperation() {
+        val starting = TransferStatusMachine.begin("op", "", 7, 1_000L)
+        val bound = TransferStatusMachine.bindServer(starting, "server-a")
+        assertEquals("server-a", bound.serverId)
+        assertEquals(bound, TransferStatusMachine.bindServer(bound, "server-b"))
+        val interrupted = TransferStatusMachine.interrupt(starting, 2_000L)
+        assertEquals(interrupted, TransferStatusMachine.bindServer(interrupted, "server-a"))
+    }
+
+    @Test
     fun receiveLifecycleTracksItemAndByteProgress() {
         val started = TransferStatusMachine.begin("op", "server-a", 7, 1_000L)
         val receiving = TransferStatusMachine.receiving(

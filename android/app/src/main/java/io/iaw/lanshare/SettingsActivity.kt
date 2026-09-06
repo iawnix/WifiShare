@@ -1,6 +1,8 @@
 package io.iaw.lanshare
 
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Resources
@@ -21,6 +23,7 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.TextViewCompat
 
@@ -35,7 +38,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var languageRowView: View
     private lateinit var themeRowView: View
     private lateinit var generalSettingsGroup: View
-    private lateinit var widgetSettingsGroup: View
+    private lateinit var copyDiagnosticsView: TextView
     private lateinit var titleView: TextView
     private lateinit var languageValueView: TextView
     private lateinit var themeValueView: TextView
@@ -43,7 +46,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var editorStatusView: TextView
     private lateinit var savedServersLabelView: TextView
     private lateinit var generalLabelView: TextView
-    private lateinit var appearanceLabelView: TextView
     private lateinit var languageOptionsView: RadioGroup
     private lateinit var themeOptionsView: RadioGroup
     private lateinit var themeSystemStatusView: TextView
@@ -56,7 +58,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var languageIconView: ImageView
     private lateinit var themeIconView: ImageView
     private lateinit var saveLocationIconView: ImageView
-    private lateinit var widgetAppearanceIconView: ImageView
     private lateinit var deleteServerButton: Button
 
     private lateinit var settingsStore: SettingsStore
@@ -127,7 +128,7 @@ class SettingsActivity : AppCompatActivity() {
         languageRowView = findViewById(R.id.languageRow)
         themeRowView = findViewById(R.id.themeRow)
         generalSettingsGroup = findViewById(R.id.generalSettingsGroup)
-        widgetSettingsGroup = findViewById(R.id.widgetSettingsGroup)
+        copyDiagnosticsView = findViewById(R.id.copyDiagnostics)
         titleView = findViewById(R.id.settingsTitleText)
         languageValueView = findViewById(R.id.languageValueText)
         themeValueView = findViewById(R.id.themeValueText)
@@ -135,7 +136,6 @@ class SettingsActivity : AppCompatActivity() {
         editorStatusView = findViewById(R.id.editorStatusText)
         savedServersLabelView = findViewById(R.id.savedServersLabel)
         generalLabelView = findViewById(R.id.generalLabel)
-        appearanceLabelView = findViewById(R.id.appearanceLabel)
         languageOptionsView = findViewById(R.id.languageOptions)
         themeOptionsView = findViewById(R.id.themeOptions)
         themeSystemStatusView = findViewById(R.id.themeSystemStatus)
@@ -148,18 +148,16 @@ class SettingsActivity : AppCompatActivity() {
         languageIconView = findViewById(R.id.languageIcon)
         themeIconView = findViewById(R.id.themeIcon)
         saveLocationIconView = findViewById(R.id.saveLocationIcon)
-        widgetAppearanceIconView = findViewById(R.id.widgetAppearanceIcon)
         deleteServerButton = findViewById(R.id.deleteServerButton)
     }
 
     private fun attachListeners() {
-        backButton.setOnClickListener {
-            if (screen == SettingsScreen.OVERVIEW) {
-                finish()
-            } else {
-                showScreen(SettingsScreen.OVERVIEW)
+        backButton.setOnClickListener { navigateBack() }
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                navigateBack()
             }
-        }
+        })
         actionButton.setOnClickListener {
             when (screen) {
                 SettingsScreen.OVERVIEW -> beginNewServer()
@@ -172,6 +170,36 @@ class SettingsActivity : AppCompatActivity() {
         languageRowView.setOnClickListener { showScreen(SettingsScreen.LANGUAGE) }
         themeRowView.setOnClickListener { showScreen(SettingsScreen.THEME) }
         deleteServerButton.setOnClickListener { deleteSelectedServer() }
+        copyDiagnosticsView.setOnClickListener { copyDiagnostics() }
+    }
+
+    private fun navigateBack() {
+        if (screen == SettingsScreen.OVERVIEW ||
+            (screen == SettingsScreen.EDITOR && intent.getBooleanExtra(EXTRA_OPEN_NEW_SERVER, false))
+        ) {
+            finish()
+        } else {
+            showScreen(SettingsScreen.OVERVIEW)
+        }
+    }
+
+    private fun copyDiagnostics() {
+        val button = copyDiagnosticsView
+        button.isEnabled = false
+        Thread {
+            val report = runCatching { CrashDiagnostics.report(applicationContext) }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                button.isEnabled = true
+                val copied = report.mapCatching { value ->
+                    getSystemService(ClipboardManager::class.java)
+                        .setPrimaryClip(ClipData.newPlainText("WifiShare diagnostics", value))
+                }.isSuccess
+                overviewMessage = getString(if (copied) R.string.diagnostics_copied else R.string.diagnostics_failed)
+                overviewStatusView.text = overviewMessage
+                overviewStatusView.visibility = View.VISIBLE
+            }
+        }.start()
     }
 
     private fun showScreen(target: SettingsScreen) {
@@ -207,7 +235,13 @@ class SettingsActivity : AppCompatActivity() {
                 titleView.setText(
                     if (selectedProfileId == null) R.string.new_server_title else R.string.settings_section_editor,
                 )
-                backButton.contentDescription = getString(R.string.back_to_settings)
+                backButton.contentDescription = getString(
+                    if (intent.getBooleanExtra(EXTRA_OPEN_NEW_SERVER, false)) {
+                        R.string.back_to_transfer
+                    } else {
+                        R.string.back_to_settings
+                    },
+                )
                 actionButton.visibility = View.VISIBLE
                 actionButton.setImageResource(R.drawable.ic_check)
                 actionButton.contentDescription = getString(R.string.save_config)
@@ -384,7 +418,7 @@ class SettingsActivity : AppCompatActivity() {
         WifiShareWidgetProvider.updateAllWidgets(this)
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         refreshSavedServers()
-        showScreen(SettingsScreen.OVERVIEW)
+        navigateBack()
     }
 
     private fun deleteSelectedServer() {
@@ -398,7 +432,7 @@ class SettingsActivity : AppCompatActivity() {
         WifiShareWidgetProvider.updateAllWidgets(this)
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         refreshSavedServers()
-        showScreen(SettingsScreen.OVERVIEW)
+        navigateBack()
     }
 
     private fun renderThemeOptions() {
@@ -511,7 +545,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun applyTheme() {
         AppTheme.applyBackground(rootView, palette)
-        listOf(savedServersListView, generalSettingsGroup, widgetSettingsGroup, languagePanel, themePanel).forEach {
+        listOf(savedServersListView, generalSettingsGroup, languagePanel, themePanel).forEach {
             AppTheme.applyCard(it, palette)
         }
         languageRowView.background = GradientDrawableFactory.dockAction(palette)
@@ -521,7 +555,7 @@ class SettingsActivity : AppCompatActivity() {
         listOf(serverNameView, baseUrlView, authTokenView, fingerprintView).forEach {
             AppTheme.applyInput(it, palette)
         }
-        listOf(languageIconView, themeIconView, saveLocationIconView, widgetAppearanceIconView).forEach {
+        listOf(languageIconView, themeIconView, saveLocationIconView).forEach {
             it.background = GradientDrawableFactory.iconButton(palette)
             it.imageTintList = ColorStateList.valueOf(palette.accent)
         }
@@ -531,7 +565,9 @@ class SettingsActivity : AppCompatActivity() {
             ColorStateList.valueOf(palette.danger),
         )
         AppTheme.applyText(rootView, palette)
-        listOf(savedServersLabelView, generalLabelView, appearanceLabelView).forEach {
+        copyDiagnosticsView.background = GradientDrawableFactory.iconButton(palette)
+        copyDiagnosticsView.setTextColor(palette.text)
+        listOf(savedServersLabelView, generalLabelView).forEach {
             AppTheme.applySectionLabel(it, palette)
         }
         for (index in 0 until languageOptionsView.childCount) {

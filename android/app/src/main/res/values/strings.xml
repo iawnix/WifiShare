@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="diagnostics_app_name">WifiShare 诊断</string>
+    <string name="diagnostics_shortcut">诊断</string>
+    <string name="diagnostics_description">无需打开主页或设置。复制下面的诊断信息发给开发者，也可保存为文件；不会清除配对或旧日志。</string>
+    <string name="diagnostics_privacy">仅含设备与应用版本、已保存的异常栈和系统退出原因；不包含 Token 或文件内容，不自动上传。</string>
+    <string name="diagnostics_loading">正在读取本地诊断记录…</string>
+    <string name="diagnostics_save">保存为文件</string>
+    <string name="diagnostics_saved">诊断文件已保存，可从刚才选择的位置找到。</string>
+    <string name="diagnostics_export_failed">操作未完成。可重试，或长按下面的文本手动复制。</string>
+    <string name="copy_diagnostics">复制诊断信息</string>
+    <string name="diagnostics_copied">诊断信息已复制，可粘贴给开发者；不包含 Token 或文件内容。</string>
+    <string name="diagnostics_failed">暂时无法读取诊断信息。</string>
     <string name="app_name">WifiShare</string>
     <string name="app_title">WifiShare</string>
     <string name="app_subtitle">局域网加密传输</string>
@@ -23,9 +34,6 @@
     <string name="settings_section_appearance">外观</string>
     <string name="save_location">保存位置</string>
     <string name="download_folder">下载/WifiShare</string>
-    <string name="widget_section">小组件</string>
-    <string name="widget_appearance">小组件外观</string>
-    <string name="widget_follows_app">语言和明暗与 App 同步</string>
     <string name="settings_hint">重新 init 后需要重新配对。</string>
     <string name="back_to_transfer">返回传输</string>
     <string name="back_to_settings">返回设置</string>

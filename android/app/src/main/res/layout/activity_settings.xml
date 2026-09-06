@@ -217,11 +217,14 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="60dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="60dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingStart="12dp"
-                    android:paddingEnd="14dp">
+                    android:paddingTop="10dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="10dp">
 
                     <ImageView
                         android:id="@+id/saveLocationIcon"
@@ -231,86 +234,49 @@
                         android:padding="8dp"
                         android:src="@drawable/ic_folder" />
 
-                    <TextView
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="11dp"
                         android:layout_weight="1"
-                        android:fontFamily="sans-serif-medium"
-                        android:text="@string/save_location"
-                        android:textColor="@color/lss_ink"
-                        android:textSize="14sp" />
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:ellipsize="middle"
-                        android:maxLines="1"
-                        android:tag="muted"
-                        android:text="@string/download_folder"
-                        android:textColor="@color/lss_muted"
-                        android:textSize="12sp" />
+                        <TextView
+                            android:id="@+id/saveLocationLabel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="@string/save_location"
+                            android:textColor="@color/lss_ink"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:tag="muted"
+                            android:text="@string/download_folder"
+                            android:textColor="@color/lss_muted"
+                            android:textSize="12sp" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
             <TextView
-                android:id="@+id/appearanceLabel"
+                android:id="@+id/copyDiagnostics"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:layout_marginTop="24dp"
-                android:layout_marginEnd="4dp"
-                android:layout_marginBottom="8dp"
-                android:fontFamily="sans-serif-medium"
-                android:tag="muted"
-                android:text="@string/widget_section"
-                android:textColor="@color/lss_muted"
-                android:textSize="12sp" />
-
-            <LinearLayout
-                android:id="@+id/widgetSettingsGroup"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:background="@drawable/card_surface"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
+                android:minHeight="48dp"
+                android:layout_marginTop="16dp"
                 android:paddingStart="12dp"
-                android:paddingEnd="14dp">
-
-                <ImageView
-                    android:id="@+id/widgetAppearanceIcon"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:contentDescription="@null"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_widgets" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="11dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-medium"
-                        android:text="@string/widget_appearance"
-                        android:textColor="@color/lss_ink"
-                        android:textSize="14sp" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:tag="muted"
-                        android:text="@string/widget_follows_app"
-                        android:textColor="@color/lss_muted"
-                        android:textSize="11sp" />
-                </LinearLayout>
-            </LinearLayout>
+                android:paddingEnd="12dp"
+                android:background="@android:color/transparent"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:text="@string/copy_diagnostics"
+                android:textColor="@color/lss_ink"
+                android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/overviewStatusText"

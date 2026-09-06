@@ -1,6 +1,5 @@
 package io.iaw.lanshare
 
-import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Typeface
@@ -9,7 +8,6 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -25,40 +23,16 @@ class ServerPickerActivity : AppCompatActivity() {
     private lateinit var emptyView: TextView
     private lateinit var closeButton: ImageButton
     private lateinit var manageButton: ImageButton
-    private lateinit var confirmButton: Button
-    private lateinit var titleView: TextView
-    private lateinit var previewSection: View
-    private lateinit var previewCard: View
-    private lateinit var previewNameView: TextView
-    private lateinit var previewAddressView: TextView
-    private lateinit var previewDeviceIcon: ImageView
-    private lateinit var previewActionIcon: ImageView
 
     private lateinit var settingsStore: SettingsStore
     private lateinit var themeMode: ThemeModeSetting
     private lateinit var palette: ThemePalette
     private var selectedProfileId: String? = null
-    private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
-
-    private val isWidgetConfiguration: Boolean
-        get() = appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID
-
     override fun onCreate(savedInstanceState: Bundle?) {
         settingsStore = SettingsStore(this)
         themeMode = settingsStore.loadThemeMode()
         AppTheme.applyMode(themeMode)
         super.onCreate(savedInstanceState)
-
-        appWidgetId = intent.getIntExtra(
-            AppWidgetManager.EXTRA_APPWIDGET_ID,
-            AppWidgetManager.INVALID_APPWIDGET_ID,
-        )
-        if (isWidgetConfiguration) {
-            setResult(
-                RESULT_CANCELED,
-                Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
-            )
-        }
 
         palette = AppTheme.palette(this, themeMode)
         AppTheme.applyToActivity(this, palette)
@@ -67,7 +41,6 @@ class ServerPickerActivity : AppCompatActivity() {
         bindViews()
         selectedProfileId = savedInstanceState?.getString(STATE_SELECTED_PROFILE_ID)
             ?: settingsStore.loadActive()?.id
-        configureMode()
         applyTheme()
         attachListeners()
         UiMotion.enterFromBottom(contentView, dp(12).toFloat(), 190L)
@@ -102,22 +75,6 @@ class ServerPickerActivity : AppCompatActivity() {
         emptyView = findViewById(R.id.serverPickerEmpty)
         closeButton = findViewById(R.id.serverPickerClose)
         manageButton = findViewById(R.id.serverPickerManage)
-        confirmButton = findViewById(R.id.serverPickerConfirm)
-        titleView = findViewById(R.id.serverPickerTitle)
-        previewSection = findViewById(R.id.widgetPreviewSection)
-        previewCard = findViewById(R.id.widgetPreviewCard)
-        previewNameView = findViewById(R.id.widgetPreviewServerName)
-        previewAddressView = findViewById(R.id.widgetPreviewServerAddress)
-        previewDeviceIcon = findViewById(R.id.widgetPreviewDeviceIcon)
-        previewActionIcon = findViewById(R.id.widgetPreviewAction)
-    }
-
-    private fun configureMode() {
-        titleView.setText(
-            if (isWidgetConfiguration) R.string.widget_configure_title else R.string.server_picker_title,
-        )
-        previewSection.visibility = if (isWidgetConfiguration) View.VISIBLE else View.GONE
-        confirmButton.visibility = if (isWidgetConfiguration) View.VISIBLE else View.GONE
     }
 
     private fun attachListeners() {
@@ -132,10 +89,6 @@ class ServerPickerActivity : AppCompatActivity() {
         closeButton.setOnClickListener { finishPicker() }
         manageButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
-        }
-        confirmButton.setOnClickListener {
-            val profile = settingsStore.findById(selectedProfileId) ?: return@setOnClickListener
-            commitSelection(profile, finishAfterSelection = true)
         }
     }
 
@@ -154,10 +107,6 @@ class ServerPickerActivity : AppCompatActivity() {
             }
             optionsView.addView(serverRow(profile, profile.id == selectedProfileId))
         }
-        val selected = profiles.firstOrNull { it.id == selectedProfileId }
-        renderPreview(selected)
-        confirmButton.isEnabled = selected != null
-        confirmButton.alpha = if (selected != null) 1f else 0.44f
     }
 
     private fun serverRow(profile: TransferConfig, selected: Boolean): View {
@@ -218,27 +167,12 @@ class ServerPickerActivity : AppCompatActivity() {
             )
             addView(trailing, LinearLayout.LayoutParams(dp(28), dp(28)))
             setOnClickListener {
-                if (isWidgetConfiguration) {
-                    selectedProfileId = profile.id
-                    UiMotion.begin(optionsView)
-                    renderServers(settingsStore.loadAll())
-                } else {
-                    commitSelection(profile, finishAfterSelection = true)
-                }
+                commitSelection(profile)
             }
         }
     }
 
-    private fun renderPreview(profile: TransferConfig?) {
-        if (!isWidgetConfiguration) {
-            return
-        }
-        previewNameView.text = profile?.serverName ?: getString(R.string.receiver_missing)
-        previewAddressView.text = profile?.let { endpointLabel(it.baseUrl) }
-            ?: getString(R.string.widget_choose_server)
-    }
-
-    private fun commitSelection(profile: TransferConfig, finishAfterSelection: Boolean) {
+    private fun commitSelection(profile: TransferConfig) {
         val currentId = settingsStore.loadActive()?.id
         if (currentId != profile.id && isAnyTransferActive()) {
             Toast.makeText(this, getString(R.string.server_switch_locked), Toast.LENGTH_SHORT).show()
@@ -249,18 +183,7 @@ class ServerPickerActivity : AppCompatActivity() {
         }
         selectedProfileId = profile.id
         WifiShareWidgetProvider.updateAllWidgets(applicationContext)
-        if (isWidgetConfiguration) {
-            WifiShareWidgetProvider.updateWidget(applicationContext, appWidgetId)
-            setResult(
-                RESULT_OK,
-                Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
-            )
-        }
-        if (finishAfterSelection) {
-            finishPicker()
-        } else {
-            renderServers(settingsStore.loadAll())
-        }
+        finishPicker()
     }
 
     private fun isAnyTransferActive(): Boolean {
@@ -273,17 +196,6 @@ class ServerPickerActivity : AppCompatActivity() {
         AppTheme.applyBareIconButton(manageButton, palette, palette.accent)
         AppTheme.applyCard(optionsView, palette)
         AppTheme.applyCard(emptyView, palette)
-        AppTheme.applyCard(previewCard, palette)
-        AppTheme.applyPrimaryButton(confirmButton, palette)
-        previewDeviceIcon.background = GradientDrawableFactory.iconButton(palette)
-        previewDeviceIcon.imageTintList = ColorStateList.valueOf(palette.accent)
-        previewActionIcon.background = GradientDrawableFactory.filledButton(
-            palette.accent,
-            palette.accentSecondary,
-            palette.accentPressed,
-            radiusDp = 24,
-        )
-        previewActionIcon.imageTintList = ColorStateList.valueOf(android.graphics.Color.WHITE)
         AppTheme.applyText(rootView, palette)
     }
 

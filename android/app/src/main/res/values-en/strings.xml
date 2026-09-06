@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="diagnostics_app_name">WifiShare Diagnostics</string>
+    <string name="diagnostics_shortcut">Diagnostics</string>
+    <string name="diagnostics_description">No need to open Home or Settings. Copy the report below for the developer or save it as a file. Pairings and existing logs are left untouched.</string>
+    <string name="diagnostics_privacy">Only device and app versions, saved stack traces, and system exit reasons are included. No tokens, file contents, or automatic uploads.</string>
+    <string name="diagnostics_loading">Reading local diagnostics…</string>
+    <string name="diagnostics_save">Save to file</string>
+    <string name="diagnostics_saved">Diagnostics saved to the location you selected.</string>
+    <string name="diagnostics_export_failed">Operation failed. Try again or long-press the report below to copy it manually.</string>
+    <string name="copy_diagnostics">Copy diagnostics</string>
+    <string name="diagnostics_copied">Diagnostics copied for the developer. Tokens and file contents are excluded.</string>
+    <string name="diagnostics_failed">Unable to read diagnostics right now.</string>
     <string name="app_name">WifiShare</string>
     <string name="app_title">WifiShare</string>
     <string name="app_subtitle">Encrypted local network transfer</string>
@@ -23,9 +34,6 @@
     <string name="settings_section_appearance">Appearance</string>
     <string name="save_location">Save location</string>
     <string name="download_folder">Downloads/WifiShare</string>
-    <string name="widget_section">Widget</string>
-    <string name="widget_appearance">Widget appearance</string>
-    <string name="widget_follows_app">Language and appearance follow the app</string>
     <string name="settings_hint">Pair again after reinitializing the server.</string>
     <string name="back_to_transfer">Back to transfers</string>
     <string name="back_to_settings">Back to Settings</string>

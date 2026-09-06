@@ -12,7 +12,7 @@ internal class UploadClient(
 ) {
     fun upload(
         item: SharedItem,
-        cancellation: UploadCancellationToken,
+        cancellation: TransferCancellationToken,
         onPrepared: (Long) -> Unit,
         onProgress: (bytesSent: Long, totalBytes: Long) -> Unit,
     ) {
@@ -90,7 +90,7 @@ internal class UploadClient(
 
     private fun computeSha256AndSize(
         item: SharedItem,
-        cancellation: UploadCancellationToken,
+        cancellation: TransferCancellationToken,
     ): Pair<String, Long> {
         val digest = MessageDigest.getInstance("SHA-256")
         var total = 0L

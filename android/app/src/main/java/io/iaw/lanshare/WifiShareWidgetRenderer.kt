@@ -294,12 +294,11 @@ internal object WifiShareWidgetRenderer {
 
     private fun serverPickerIntent(context: Context, appWidgetId: Int): PendingIntent {
         val intent = Intent(context, ServerPickerActivity::class.java).apply {
-            action = AppWidgetManager.ACTION_APPWIDGET_CONFIGURE
+            action = "io.iaw.lanshare.action.PICK_SERVER"
             data = Uri.parse(
                 WidgetPendingIntentIdentity.dataUri(appWidgetId, WidgetPendingIntentKind.SERVER_PICKER),
             )
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
         }
         return PendingIntent.getActivity(
             context,

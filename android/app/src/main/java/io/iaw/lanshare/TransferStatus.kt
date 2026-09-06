@@ -71,6 +71,11 @@ internal object TransferStatusMachine {
         )
     }
 
+    fun bindServer(current: TransferStatus, serverId: String): TransferStatus {
+        if (!current.isActive() || current.serverId.isNotBlank()) return current
+        return current.copy(serverId = serverId)
+    }
+
     fun checking(current: TransferStatus, completedItems: Int, now: Long): TransferStatus {
         return current.copy(
             phase = TransferPhase.CHECKING,

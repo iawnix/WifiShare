@@ -8,18 +8,20 @@ import android.app.Service
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.widget.Toast
+import android.os.SystemClock
+import androidx.core.app.NotificationCompat
 import java.util.UUID
 import java.util.concurrent.Executors
 
 class UploadService : Service() {
     private val worker = Executors.newSingleThreadExecutor()
+    private val cancellationWorker = Executors.newSingleThreadExecutor()
+    private val notificationThrottle = ProgressUpdateThrottle()
     private val heartbeatHandler = Handler(Looper.getMainLooper())
     private lateinit var statusStore: UploadStatusStore
 
@@ -72,7 +74,23 @@ class UploadService : Service() {
             }
         }
         worker.shutdownNow()
+        cancellationWorker.shutdown()
         super.onDestroy()
+    }
+
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        // Android 15+ requires dataSync services to stop promptly when their budget expires.
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        val active = activeUpload ?: return
+        activeUpload = null
+        heartbeatHandler.removeCallbacks(heartbeat)
+        active.cancellation.cancel()
+        OPERATION_GATE.release(active.operationId)
+        statusStore.interruptActive()?.let { status ->
+            TransferHistoryStore(this).recordUpload(status)
+            sendStatusBroadcast(status)
+        }
     }
 
     private fun startUpload(intent: Intent, startId: Int): Int {
@@ -87,7 +105,8 @@ class UploadService : Service() {
             return START_NOT_STICKY
         }
 
-        val cancellation = UploadCancellationToken()
+        val cancellation = TransferCancellationToken(cancellationWorker)
+        notificationThrottle.reset()
         activeUpload = ActiveUpload(operationId, cancellation)
         val initialStatus = statusStore.begin(
             operationId = operationId,
@@ -101,6 +120,7 @@ class UploadService : Service() {
 
         try {
             ensureNotificationChannel()
+            getSystemService(NotificationManager::class.java).cancel(RESULT_NOTIFICATION_ID)
             startForeground(NOTIFICATION_ID, buildProgressNotification(initialStatus))
             sendStatusBroadcast(initialStatus)
             worker.execute {
@@ -109,7 +129,8 @@ class UploadService : Service() {
                     finishOperation(operationId, terminalStatus)
                 }
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            CrashDiagnostics.record(this, error)
             abortBeforeWorker(operationId, startId)
         }
         return START_NOT_STICKY
@@ -128,7 +149,7 @@ class UploadService : Service() {
         val status = statusStore.requestCancel(operationId, System.currentTimeMillis())
         active.cancellation.cancel()
         if (status != null) {
-            publishProgress(status)
+            publishProgress(status, force = true)
         }
     }
 
@@ -136,7 +157,7 @@ class UploadService : Service() {
         operationId: String,
         config: TransferConfig?,
         uris: List<Uri>,
-        cancellation: UploadCancellationToken,
+        cancellation: TransferCancellationToken,
     ): UploadStatus {
         if (config == null) {
             return fail(operationId, UploadErrorCode.INVALID_CONFIG)
@@ -160,7 +181,6 @@ class UploadService : Service() {
                 )?.let(::publishProgress)
 
                 var lastProgressUpdateAt = 0L
-                var lastProgressBucket = -1
                 client.upload(
                     item = item,
                     cancellation = cancellation,
@@ -177,13 +197,10 @@ class UploadService : Service() {
                     },
                     onProgress = { bytesSent, totalBytes ->
                         val now = System.currentTimeMillis()
-                        val bucket = progressBucket(bytesSent, totalBytes)
                         val shouldPublish = now - lastProgressUpdateAt >= PROGRESS_UPDATE_INTERVAL_MILLIS ||
-                            bucket != lastProgressBucket ||
                             bytesSent >= totalBytes
                         if (shouldPublish) {
                             lastProgressUpdateAt = now
-                            lastProgressBucket = bucket
                             statusStore.updateUploading(
                                 operationId = operationId,
                                 itemName = item.displayName,
@@ -202,7 +219,7 @@ class UploadService : Service() {
 
             statusStore.complete(operationId, System.currentTimeMillis())
                 ?: terminalAfterRejectedCompletion(operationId, completedItems, cancellation)
-        } catch (_: UploadCancelledException) {
+        } catch (_: TransferCancelledException) {
             statusStore.cancel(operationId, completedItems, System.currentTimeMillis())
                 ?: statusStore.load()
         } catch (error: Exception) {
@@ -218,7 +235,7 @@ class UploadService : Service() {
     private fun terminalAfterRejectedCompletion(
         operationId: String,
         completedItems: Int,
-        cancellation: UploadCancellationToken,
+        cancellation: TransferCancellationToken,
     ): UploadStatus {
         val current = statusStore.load()
         return if (cancellation.isCancelled || current.phase == UploadPhase.CANCEL_REQUESTED) {
@@ -233,7 +250,9 @@ class UploadService : Service() {
             ?: statusStore.load()
     }
 
-    private fun publishProgress(status: UploadStatus) {
+    private fun publishProgress(status: UploadStatus, force: Boolean = false) {
+        if (activeUpload?.operationId != status.operationId) return
+        if (!force && !notificationThrottle.shouldPublish(SystemClock.elapsedRealtime())) return
         runCatching {
             getSystemService(NotificationManager::class.java).notify(
                 NOTIFICATION_ID,
@@ -245,18 +264,16 @@ class UploadService : Service() {
 
     private fun finishOperation(operationId: String, status: UploadStatus) {
         val active = activeUpload
-        if (active?.operationId == operationId) {
-            activeUpload = null
-            heartbeatHandler.removeCallbacks(heartbeat)
-        }
+        if (active?.operationId != operationId) return
+        activeUpload = null
+        heartbeatHandler.removeCallbacks(heartbeat)
         OPERATION_GATE.release(operationId)
         try {
             TransferHistoryStore(this).recordUpload(status)
-            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopForeground(STOP_FOREGROUND_DETACH)
             val message = messageFor(status)
             runCatching { showResultNotification(status, message) }
             sendStatusBroadcast(status)
-            runCatching { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
         } finally {
             stopSelf()
         }
@@ -272,13 +289,13 @@ class UploadService : Service() {
             phase = UploadPhase.ERROR,
             errorCode = UploadErrorCode.UNKNOWN,
         )
+        activeUpload?.cancellation?.cancel()
         activeUpload = null
         heartbeatHandler.removeCallbacks(heartbeat)
         OPERATION_GATE.release(operationId)
         TransferHistoryStore(this).recordUpload(status)
         runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
         sendStatusBroadcast(status)
-        runCatching { Toast.makeText(this, messageFor(status), Toast.LENGTH_LONG).show() }
         stopSelf(startId)
     }
 
@@ -290,9 +307,6 @@ class UploadService : Service() {
             totalItems = totalItems,
         )
         sendStatusBroadcast(status)
-        runCatching {
-            Toast.makeText(this, messageFor(status), Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun configFromIntent(intent: Intent): TransferConfig? {
@@ -339,13 +353,15 @@ class UploadService : Service() {
             UploadPhase.CANCEL_REQUESTED -> textContext.getString(R.string.upload_notification_stopping)
             else -> messageFor(status)
         }
-        val builder = Notification.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(textContext.getString(R.string.upload_notification_title))
             .setContentText(text)
             .setContentIntent(openMainIntent())
             .setOngoing(status.isActive())
             .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
 
         if (status.phase == UploadPhase.UPLOADING && status.totalBytes > 0L) {
             builder.setProgress(PROGRESS_MAX, progressValue(status), false)
@@ -355,8 +371,8 @@ class UploadService : Service() {
 
         if (status.phase == UploadPhase.PREFLIGHT || status.phase == UploadPhase.UPLOADING) {
             builder.addAction(
-                Notification.Action.Builder(
-                    Icon.createWithResource(this, R.drawable.ic_stop),
+                NotificationCompat.Action.Builder(
+                    R.drawable.ic_stop,
                     textContext.getString(R.string.upload_notification_cancel),
                     cancelPendingIntent(status.operationId),
                 ).build(),
@@ -373,13 +389,15 @@ class UploadService : Service() {
             else -> textContext.getString(R.string.upload_failed_title)
         }
         getSystemService(NotificationManager::class.java).notify(
-            RESULT_NOTIFICATION_ID,
-            Notification.Builder(this, CHANNEL_ID)
+            NOTIFICATION_ID,
+            NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setContentIntent(openMainIntent())
                 .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
                 .build(),
         )
     }
@@ -459,13 +477,6 @@ class UploadService : Service() {
         )
     }
 
-    private fun progressBucket(bytesSent: Long, totalBytes: Long): Int {
-        if (totalBytes <= 0L) {
-            return -1
-        }
-        return ((bytesSent.coerceIn(0L, totalBytes) * 20L) / totalBytes).toInt()
-    }
-
     private fun progressValue(status: UploadStatus): Int {
         if (status.totalBytes <= 0L) {
             return 0
@@ -480,7 +491,7 @@ class UploadService : Service() {
 
     private data class ActiveUpload(
         val operationId: String,
-        val cancellation: UploadCancellationToken,
+        val cancellation: TransferCancellationToken,
     )
 
     companion object {

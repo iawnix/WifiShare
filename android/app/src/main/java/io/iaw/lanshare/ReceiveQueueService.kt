@@ -10,7 +10,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.IBinder
-import android.widget.Toast
+import android.os.SystemClock
+import androidx.core.app.NotificationCompat
 import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import java.util.UUID
@@ -18,6 +19,9 @@ import java.util.concurrent.Executors
 
 class ReceiveQueueService : Service() {
     private val worker = Executors.newSingleThreadExecutor()
+    private val cancellationWorker = Executors.newSingleThreadExecutor()
+    private val notificationThrottle = ProgressUpdateThrottle()
+    private var activeCancellation: TransferCancellationToken? = null
     private lateinit var statusStore: TransferStatusStore
 
     @Volatile
@@ -28,7 +32,7 @@ class ReceiveQueueService : Service() {
         statusStore = TransferStatusStore(this)
         val interrupted = statusStore.interruptActive()
         if (interrupted != null) {
-            recordHistory(interrupted)
+            worker.execute { runCatching { recordHistory(interrupted) } }
             runCatching { WifiShareWidgetProvider.updateAllWidgets(this) }
         }
     }
@@ -36,23 +40,30 @@ class ReceiveQueueService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action != ACTION_RECEIVE) {
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         val operationId = UUID.randomUUID().toString()
         if (!OPERATION_GATE.tryAcquire(operationId)) {
             reportBusy()
             return START_NOT_STICKY
         }
         currentOperationId = operationId
+        val cancellation = TransferCancellationToken(cancellationWorker)
+        activeCancellation = cancellation
+        notificationThrottle.reset()
 
-        val serverId = SettingsStore(this).loadActive()?.id.orEmpty()
-        val sourceWidgetId = intent?.getIntExtra(
+        val sourceWidgetId = intent.getIntExtra(
             EXTRA_APP_WIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID,
-        ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+        )
         val startedAt = System.currentTimeMillis()
-        val initialStatus = statusStore.begin(operationId, serverId, sourceWidgetId, startedAt)
+        val initialStatus = statusStore.begin(operationId, "", sourceWidgetId, startedAt)
 
         try {
             ensureNotificationChannel()
+            getSystemService(NotificationManager::class.java).cancel(RESULT_NOTIFICATION_ID)
             startForeground(
                 NOTIFICATION_ID,
                 buildNotification(
@@ -62,20 +73,20 @@ class ReceiveQueueService : Service() {
                     status = initialStatus,
                 ),
             )
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            CrashDiagnostics.record(this, error)
             abortBeforeWorker(operationId, startId)
             return START_NOT_STICKY
         }
-        runCatching { WifiShareWidgetProvider.updateAllWidgets(this) }
-
         try {
             worker.execute {
-                val outcome = receiveQueuedFiles(operationId, serverId)
+                val outcome = receiveQueuedFiles(operationId, cancellation)
                 runOnMain {
                     finishOperation(operationId, outcome)
                 }
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            CrashDiagnostics.record(this, error)
             abortBeforeWorker(operationId, startId)
         }
         return START_NOT_STICKY
@@ -84,30 +95,51 @@ class ReceiveQueueService : Service() {
     override fun onDestroy() {
         val operationId = currentOperationId
         currentOperationId = null
+        activeCancellation?.cancel()
+        activeCancellation = null
         if (operationId != null && OPERATION_GATE.release(operationId)) {
             statusStore.interruptActive()
             runCatching { WifiShareWidgetProvider.updateAllWidgets(this) }
         }
         worker.shutdownNow()
+        cancellationWorker.shutdown()
         super.onDestroy()
     }
 
-    private fun receiveQueuedFiles(operationId: String, serverId: String): ReceiveOutcome {
-        val config = SettingsStore(this).findById(serverId)
-        if (config == null) {
-            val status = statusStore.fail(
-                operationId,
-                TransferErrorCode.NO_CONFIG,
-                System.currentTimeMillis(),
-            ) ?: TransferStatus(serverId = serverId, phase = TransferPhase.ERROR)
-            return ReceiveOutcome(status, messageFor(status))
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        val operationId = currentOperationId ?: return
+        currentOperationId = null
+        activeCancellation?.cancel()
+        activeCancellation = null
+        OPERATION_GATE.release(operationId)
+        statusStore.interruptActive()?.let { status ->
+            TransferHistoryStore(this).recordReceive(status, "")
+            sendFinishedBroadcast(messageFor(status), status)
         }
+        WifiShareWidgetProvider.updateAllWidgets(this)
+    }
 
+    private fun receiveQueuedFiles(
+        operationId: String,
+        cancellation: TransferCancellationToken,
+    ): ReceiveOutcome {
         var completedItems = 0
         var lastProgressUpdateAt = 0L
-        var lastProgressBucket = -1
         return try {
-            val count = DownloadClient(this, config).fetchAllPending { progress ->
+            cancellation.throwIfCancelled()
+            val config = SettingsStore(this).loadActive()
+            cancellation.throwIfCancelled()
+            if (config == null) {
+                val status = statusStore.fail(operationId, TransferErrorCode.NO_CONFIG, System.currentTimeMillis())
+                    ?: statusStore.load()
+                return ReceiveOutcome(status, messageFor(status))
+            }
+            statusStore.bindServer(operationId, config.id)
+            cancellation.throwIfCancelled()
+            val count = DownloadClient(this, config, cancellation).fetchAllPending { progress ->
+                cancellation.throwIfCancelled()
                 completedItems = progress.completedItems
                 val now = System.currentTimeMillis()
                 val status = when (progress.phase) {
@@ -126,15 +158,12 @@ class ReceiveQueueService : Service() {
                     )
 
                     DownloadProgressPhase.BYTES_RECEIVED -> {
-                        val bucket = progressBucket(progress.bytesReceived, progress.totalBytes)
                         val shouldPublish = now - lastProgressUpdateAt >= PROGRESS_UPDATE_INTERVAL_MILLIS ||
-                            bucket != lastProgressBucket ||
                             progress.bytesReceived >= progress.totalBytes
                         if (!shouldPublish) {
                             null
                         } else {
                             lastProgressUpdateAt = now
-                            lastProgressBucket = bucket
                             statusStore.updateReceiving(
                                 operationId = operationId,
                                 itemName = progress.itemName,
@@ -161,6 +190,8 @@ class ReceiveQueueService : Service() {
     }
 
     private fun publishProgress(status: TransferStatus) {
+        if (currentOperationId != status.operationId) return
+        if (!notificationThrottle.shouldPublish(SystemClock.elapsedRealtime())) return
         val text = when (status.phase) {
             TransferPhase.RECEIVING -> text(
                 R.string.receive_notification_progress,
@@ -184,14 +215,15 @@ class ReceiveQueueService : Service() {
     }
 
     private fun finishOperation(operationId: String, outcome: ReceiveOutcome) {
+        if (currentOperationId != operationId) return
         currentOperationId = null
+        activeCancellation = null
         OPERATION_GATE.release(operationId)
         try {
             recordHistory(outcome.status)
-            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopForeground(STOP_FOREGROUND_DETACH)
             runCatching { showResultNotification(outcome.message) }
             runCatching { sendFinishedBroadcast(outcome.message, outcome.status) }
-            runCatching { Toast.makeText(this, outcome.message, Toast.LENGTH_LONG).show() }
             runCatching { WifiShareWidgetProvider.updateAllWidgets(this) }
         } finally {
             stopSelf()
@@ -201,7 +233,6 @@ class ReceiveQueueService : Service() {
     private fun reportBusy() {
         val message = text(R.string.receive_busy)
         runCatching { sendFinishedBroadcast(message, TransferStatus(phase = TransferPhase.BUSY)) }
-        runCatching { Toast.makeText(this, message, Toast.LENGTH_SHORT).show() }
         runCatching { WifiShareWidgetProvider.updateAllWidgets(this) }
     }
 
@@ -212,11 +243,13 @@ class ReceiveQueueService : Service() {
             System.currentTimeMillis(),
         ) ?: TransferStatus(phase = TransferPhase.ERROR, errorCode = TransferErrorCode.UNKNOWN)
         currentOperationId = null
+        activeCancellation?.cancel()
+        activeCancellation = null
         OPERATION_GATE.release(operationId)
         recordHistory(status)
         val message = messageFor(status)
         runCatching { sendFinishedBroadcast(message, status) }
-        runCatching { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
+        runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
         runCatching { WifiShareWidgetProvider.updateAllWidgets(this) }
         stopSelf(startId)
     }
@@ -266,7 +299,7 @@ class ReceiveQueueService : Service() {
 
     private fun showResultNotification(message: String) {
         getSystemService(NotificationManager::class.java).notify(
-            RESULT_NOTIFICATION_ID,
+            NOTIFICATION_ID,
             buildNotification(
                 title = text(R.string.receive_notification_done),
                 text = message,
@@ -281,13 +314,16 @@ class ReceiveQueueService : Service() {
         ongoing: Boolean,
         status: TransferStatus? = null,
     ): Notification {
-        val builder = Notification.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(openMainIntent())
             .setOngoing(ongoing)
             .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setAutoCancel(!ongoing)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
         if (ongoing && status != null) {
             val hasByteProgress = status.phase == TransferPhase.RECEIVING && status.totalBytes > 0L
             if (hasByteProgress) {
@@ -320,13 +356,6 @@ class ReceiveQueueService : Service() {
                 .putExtra(EXTRA_RESULT_ERROR, status.errorCode.name),
             InternalBroadcasts.PERMISSION,
         )
-    }
-
-    private fun progressBucket(bytesReceived: Long, totalBytes: Long): Int {
-        if (totalBytes <= 0L) {
-            return -1
-        }
-        return ((bytesReceived.coerceIn(0L, totalBytes) * 20L) / totalBytes).toInt()
     }
 
     private fun progressValue(status: TransferStatus): Int {

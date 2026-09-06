@@ -4,10 +4,13 @@ import java.io.Closeable
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.Executor
 
-internal class UploadCancelledException : IOException("Upload cancelled")
+internal class TransferCancelledException : IOException("Transfer cancelled")
 
-internal class UploadCancellationToken {
+internal class TransferCancellationToken(
+    private val cleanupExecutor: Executor = Executor { it.run() },
+) {
     private val cancelled = AtomicBoolean(false)
     private val resourceLock = Any()
     private val closeables = mutableSetOf<Closeable>()
@@ -27,13 +30,17 @@ internal class UploadCancellationToken {
             activeConnection = connection
             connection = null
         }
-        resources.forEach { runCatching { it.close() } }
-        runCatching { activeConnection?.disconnect() }
+        // Disconnect/close can block in a network or document provider. Services supply
+        // a separate executor so cancellation never blocks the Android main thread.
+        cleanupExecutor.execute {
+            runCatching { activeConnection?.disconnect() }
+            resources.forEach { runCatching { it.close() } }
+        }
     }
 
     fun throwIfCancelled() {
         if (isCancelled) {
-            throw UploadCancelledException()
+            throw TransferCancelledException()
         }
     }
 
@@ -46,7 +53,7 @@ internal class UploadCancellationToken {
         }
         if (closeImmediately) {
             runCatching { closeable.close() }
-            throw UploadCancelledException()
+            throw TransferCancelledException()
         }
     }
 
@@ -65,7 +72,7 @@ internal class UploadCancellationToken {
         }
         if (disconnectImmediately) {
             connection.disconnect()
-            throw UploadCancelledException()
+            throw TransferCancelledException()
         }
     }
 
