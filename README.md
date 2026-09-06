@@ -1,3 +1,7 @@
+<p>
+  <img src="android/app/src/main/res/drawable-nodpi/wifishare_logo.png" width="96" height="96" alt="WifiShare App logo">
+</p>
+
 # WifiShare
 
 Android 手机与 Linux 电脑之间的局域网文件互传工具。文件通过 HTTPS 直传，不经过云端中转。
